@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\PDMA Technologies\\Clients\\Envato\\assets-manager\\server\\logs\\.4318f0e06318e69375562694954a60496c47fdf0-audit.json",
+    "files": [
+        {
+            "date": 1759814009382,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\assets-manager\\server\\logs\\error-2025-10-07.log",
+            "hash": "db18ccd2e0196a9f60cde4e19fa57727c63eb14cfbf9fc44bab63e72e0dabaeb"
+        },
+        {
+            "date": 1760444690463,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\assets-manager\\server\\logs\\error-2025-10-14.log",
+            "hash": "041ee04ee360c5f241e6ccbd0f1670309e9313ac690829a8f75afccbc9ee4e57"
+        }
+    ],
+    "hashType": "sha256"
+}

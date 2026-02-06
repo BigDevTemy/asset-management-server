@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "C:\\PDMA Technologies\\Clients\\Envato\\assets-manager\\server\\logs\\.a6f9b594d8180d8086a9b8efa7821afe9c0c6254-audit.json",
+    "files": [
+        {
+            "date": 1760444690492,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\assets-manager\\server\\logs\\http-2025-10-14.log",
+            "hash": "be2f797e56c0f94fe232e56cd9b6a433dbfa8ab8e223a53be1fc6299682ef54b"
+        }
+    ],
+    "hashType": "sha256"
+}

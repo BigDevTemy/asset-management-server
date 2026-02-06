@@ -1,0 +1,35 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\.439b2634174c72b34549b69f181c8357fb41a49f-audit.json",
+    "files": [
+        {
+            "date": 1766557865900,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\http-2025-12-24.log",
+            "hash": "411dd4daa82cf4d677c7b1ceeed17903a27ad034d32b195b642e9b3aa60fdffe"
+        },
+        {
+            "date": 1766640556906,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\http-2025-12-25.log",
+            "hash": "e15779cb961be60374ff984b44e0ca39f7abf67a04e2cdc2ab7a426998b118ef"
+        },
+        {
+            "date": 1766733747771,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\http-2025-12-26.log",
+            "hash": "588a2ece8804d6faf3d02199910949c9087eeb073d0c7371db2e5dd352ca8fd8"
+        },
+        {
+            "date": 1767014110663,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\http-2025-12-29.log",
+            "hash": "21b4e71c0b45ecab3024565b34f4536e5614897d8adb05ecf36da5f54c59e113"
+        },
+        {
+            "date": 1767074245669,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\http-2025-12-30.log",
+            "hash": "14747eb08c77f4ad4947cb5b450f092aabfadeb12578a25447e585cda109e73e"
+        }
+    ],
+    "hashType": "sha256"
+}

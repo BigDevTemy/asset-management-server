@@ -1,0 +1,35 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\.dba99e3223d11f68441281b1120abaf5b89a3c7d-audit.json",
+    "files": [
+        {
+            "date": 1766557865875,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\error-2025-12-24.log",
+            "hash": "f5f3015949895d251097fca97426fc291eabb875d924210feaab3159f2e7ae1b"
+        },
+        {
+            "date": 1766640556897,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\error-2025-12-25.log",
+            "hash": "78d4e54c705cbeef11a433658cb849aa4290d72cb319715e702ae3feb8c360f4"
+        },
+        {
+            "date": 1766733747687,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\error-2025-12-26.log",
+            "hash": "940ac0ad49cc83da806c2157505ff9c7159d6016f155af0a945f34d6c942e780"
+        },
+        {
+            "date": 1767014110579,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\error-2025-12-29.log",
+            "hash": "5c72f5727ab404ef700499a0f7030e04a97b2a243b67820447f58b50461fb72a"
+        },
+        {
+            "date": 1767074245605,
+            "name": "C:\\PDMA Technologies\\Clients\\Envato\\00_assets-manager\\server\\logs\\error-2025-12-30.log",
+            "hash": "a077e0ef1ee8007c0643b387bb5f7b34fc4917d30255c0e99cdfa4554efc4234"
+        }
+    ],
+    "hashType": "sha256"
+}
