@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+// Explicitly require mysql2 so Vercel traces and bundles the native driver
+require('mysql2');
 const Sequelize = require('sequelize');
 const process = require('process');
 const basename = path.basename(__filename);
