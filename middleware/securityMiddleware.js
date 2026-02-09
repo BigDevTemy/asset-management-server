@@ -66,7 +66,8 @@ const corsOptions = {
     'Accept',
     'Origin',
     'Cache-Control',
-    'Pragma'
+    'Pragma',
+    'ngrok-skip-browser-warning' // allow ngrok’s custom header used by some clients
   ],
   exposedHeaders: ['Content-Disposition'],
   maxAge: 86400 // 24 hours
