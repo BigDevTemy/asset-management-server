@@ -149,3 +149,11 @@
 {"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-02-09 00:56:41:5641"}
 {"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-02-09 00:57:32:5732"}
 {"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-02-09 01:01:40:140"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-02-09 01:08:02:82"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-02-09 01:26:58:2658","url":"/api/auth/login","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-02-09 01:26:58:2658"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-02-09 01:27:01:271"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-02-09 01:27:01:271","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36","userId":"admin@gmail.com"}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"POST","responseTime":"3497ms","statusCode":200,"timestamp":"2026-02-09 01:27:01:271","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [09/Feb/2026:00:27:01 +0000] \"POST /api/auth/login HTTP/1.1\" 200 648 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36\"","timestamp":"2026-02-09 01:27:01:271"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-02-09 01:38:05:385"}

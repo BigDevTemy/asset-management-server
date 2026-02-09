@@ -33,12 +33,42 @@ const securityHeaders = helmet({
 
 /**
  * CORS configuration
+ * Prefer explicit allowlist from ALLOWED_ORIGINS env (comma-separated).
+ * If not set, fallback to allowing any origin.
  */
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 const corsOptions = {
-  origin: true, // Allow all origins for iframe embedding
+  origin: (origin, callback) => {
+    // No origin (mobile apps, curl) -> allow
+    if (!origin) return callback(null, true);
+
+    const cleanOrigin = origin.replace(/\/$/, '');
+
+    // If no allowlist specified, allow all
+    if (!allowedOrigins.length) return callback(null, true);
+
+    if (allowedOrigins.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  // List common headers; with credentials we can’t use wildcard
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cache-Control',
+    'Pragma'
+  ],
+  exposedHeaders: ['Content-Disposition'],
   maxAge: 86400 // 24 hours
 };
 
