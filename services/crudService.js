@@ -1,6 +1,6 @@
-'use strict';
+'use strict'
 
-const { Op } = require('sequelize');
+const { Op } = require('sequelize')
 
 /**
  * Generic CRUD Service for Sequelize models
@@ -8,7 +8,7 @@ const { Op } = require('sequelize');
  */
 class CrudService {
   constructor(model, options = {}) {
-    this.model = model;
+    this.model = model
     this.options = {
       // Default search fields - can be overridden per model
       searchFields: options.searchFields || [],
@@ -21,13 +21,17 @@ class CrudService {
       // Maximum page size
       maxPageSize: options.maxPageSize || 100,
       // Fields to exclude from search
-      excludeFromSearch: options.excludeFromSearch || ['password_hash', 'created_at', 'updated_at'],
+      excludeFromSearch: options.excludeFromSearch || [
+        'password_hash',
+        'created_at',
+        'updated_at',
+      ],
       // Include associations by default
       defaultIncludes: options.defaultIncludes || [],
       // Fields to exclude from response
       excludeFromResponse: options.excludeFromResponse || ['password_hash'],
-      ...options
-    };
+      ...options,
+    }
   }
 
   /**
@@ -45,30 +49,29 @@ class CrudService {
         sortBy = this.options.defaultSort,
         sortOrder = this.options.defaultOrder,
         ...filters
-      } = queryParams;
-
-
+      } = queryParams
 
       // Validate and sanitize pagination parameters
-      const pageNumber = Math.max(1, parseInt(page, 10));
+      const pageNumber = Math.max(1, parseInt(page, 10))
       const pageSize = Math.min(
         this.options.maxPageSize,
-        Math.max(1, parseInt(limit, 10))
-      );
-      const offset = (pageNumber - 1) * pageSize;
+        Math.max(1, parseInt(limit, 10)),
+      )
+      const offset = (pageNumber - 1) * pageSize
 
       console.log({ filters })
       console.log({ search })
 
       // Build where clause
-      const whereClause = this._buildWhereClause(filters, search);
+      const whereClause = this._buildWhereClause(filters, search)
 
       // Build order clause
-      const orderClause = this._buildOrderClause(sortBy, sortOrder);
+      const orderClause = this._buildOrderClause(sortBy, sortOrder)
 
       // Build include clause
-      const includeClause = this._buildIncludeClause(additionalOptions.include);
-
+      const includeClause = this._buildIncludeClause(additionalOptions.include)
+      // In crudService.js line 70
+      console.log('includeClause:', JSON.stringify(includeClause, null, 2))
 
       console.log({ whereClause })
 
@@ -80,16 +83,16 @@ class CrudService {
         limit: pageSize,
         offset: offset,
         distinct: true,
-        ...additionalOptions
-      });
+        ...additionalOptions,
+      })
 
       // Calculate pagination metadata
-      const totalPages = Math.ceil(count / pageSize);
-      const hasNextPage = pageNumber < totalPages;
-      const hasPrevPage = pageNumber > 1;
+      const totalPages = Math.ceil(count / pageSize)
+      const hasNextPage = pageNumber < totalPages
+      const hasPrevPage = pageNumber > 1
 
       // Remove sensitive fields from response
-      const sanitizedRows = this._sanitizeResponse(rows);
+      const sanitizedRows = this._sanitizeResponse(rows)
 
       return {
         data: sanitizedRows,
@@ -99,17 +102,19 @@ class CrudService {
           totalItems: count,
           itemsPerPage: pageSize,
           hasNextPage,
-          hasPrevPage
+          hasPrevPage,
         },
         filters: {
           search,
           sortBy,
           sortOrder,
-          appliedFilters: filters
-        }
-      };
+          appliedFilters: filters,
+        },
+      }
     } catch (error) {
-      throw new Error(`Failed to fetch ${this.model.name} list: ${error.message}`);
+      throw new Error(
+        `Failed to fetch ${this.model.name} list: ${error.message}`,
+      )
     }
   }
 
@@ -121,20 +126,22 @@ class CrudService {
    */
   async getById(id, additionalOptions = {}) {
     try {
-      const includeClause = this._buildIncludeClause(additionalOptions.include);
+      const includeClause = this._buildIncludeClause(additionalOptions.include)
 
       const record = await this.model.findByPk(id, {
         include: includeClause,
-        ...additionalOptions
-      });
+        ...additionalOptions,
+      })
 
       if (!record) {
-        return null;
+        return null
       }
 
-      return this._sanitizeResponse(record);
+      return this._sanitizeResponse(record)
     } catch (error) {
-      throw new Error(`Failed to fetch ${this.model.name} by ID: ${error.message}`);
+      throw new Error(
+        `Failed to fetch ${this.model.name} by ID: ${error.message}`,
+      )
     }
   }
 
@@ -146,21 +153,23 @@ class CrudService {
    */
   async create(data, additionalOptions = {}) {
     try {
-      const record = await this.model.create(data, additionalOptions);
-      return this._sanitizeResponse(record);
+      const record = await this.model.create(data, additionalOptions)
+      return this._sanitizeResponse(record)
     } catch (error) {
       if (error.name === 'SequelizeValidationError') {
-        const validationErrors = error.errors.map(err => ({
+        const validationErrors = error.errors.map((err) => ({
           field: err.path,
           message: err.message,
-          value: err.value
-        }));
-        throw new Error(`Validation failed: ${validationErrors.map(e => e.message).join(', ')}`);
+          value: err.value,
+        }))
+        throw new Error(
+          `Validation failed: ${validationErrors.map((e) => e.message).join(', ')}`,
+        )
       }
       if (error.name === 'SequelizeUniqueConstraintError') {
-        throw new Error(`Record with this data already exists`);
+        throw new Error(`Record with this data already exists`)
       }
-      throw new Error(`Failed to create ${this.model.name}: ${error.message}`);
+      throw new Error(`Failed to create ${this.model.name}: ${error.message}`)
     }
   }
 
@@ -175,28 +184,30 @@ class CrudService {
     try {
       const [affectedCount] = await this.model.update(data, {
         where: { [this._getPrimaryKey()]: id },
-        ...additionalOptions
-      });
+        ...additionalOptions,
+      })
 
       if (affectedCount === 0) {
-        return null;
+        return null
       }
 
       // Return updated record
-      return await this.getById(id, additionalOptions);
+      return await this.getById(id, additionalOptions)
     } catch (error) {
       if (error.name === 'SequelizeValidationError') {
-        const validationErrors = error.errors.map(err => ({
+        const validationErrors = error.errors.map((err) => ({
           field: err.path,
           message: err.message,
-          value: err.value
-        }));
-        throw new Error(`Validation failed: ${validationErrors.map(e => e.message).join(', ')}`);
+          value: err.value,
+        }))
+        throw new Error(
+          `Validation failed: ${validationErrors.map((e) => e.message).join(', ')}`,
+        )
       }
       if (error.name === 'SequelizeUniqueConstraintError') {
-        throw new Error(`Record with this data already exists`);
+        throw new Error(`Record with this data already exists`)
       }
-      throw new Error(`Failed to update ${this.model.name}: ${error.message}`);
+      throw new Error(`Failed to update ${this.model.name}: ${error.message}`)
     }
   }
 
@@ -210,12 +221,12 @@ class CrudService {
     try {
       const deletedCount = await this.model.destroy({
         where: { [this._getPrimaryKey()]: id },
-        ...additionalOptions
-      });
+        ...additionalOptions,
+      })
 
-      return deletedCount > 0;
+      return deletedCount > 0
     } catch (error) {
-      throw new Error(`Failed to delete ${this.model.name}: ${error.message}`);
+      throw new Error(`Failed to delete ${this.model.name}: ${error.message}`)
     }
   }
 
@@ -228,17 +239,19 @@ class CrudService {
   async bulkDelete(ids, additionalOptions = {}) {
     try {
       if (!Array.isArray(ids) || ids.length === 0) {
-        throw new Error('IDs array is required and must not be empty');
+        throw new Error('IDs array is required and must not be empty')
       }
 
       const deletedCount = await this.model.destroy({
         where: { [this._getPrimaryKey()]: { [Op.in]: ids } },
-        ...additionalOptions
-      });
+        ...additionalOptions,
+      })
 
-      return deletedCount;
+      return deletedCount
     } catch (error) {
-      throw new Error(`Failed to bulk delete ${this.model.name}: ${error.message}`);
+      throw new Error(
+        `Failed to bulk delete ${this.model.name}: ${error.message}`,
+      )
     }
   }
 
@@ -250,11 +263,13 @@ class CrudService {
   async exists(id) {
     try {
       const count = await this.model.count({
-        where: { [this._getPrimaryKey()]: id }
-      });
-      return count > 0;
+        where: { [this._getPrimaryKey()]: id },
+      })
+      return count > 0
     } catch (error) {
-      throw new Error(`Failed to check ${this.model.name} existence: ${error.message}`);
+      throw new Error(
+        `Failed to check ${this.model.name} existence: ${error.message}`,
+      )
     }
   }
 
@@ -265,10 +280,10 @@ class CrudService {
    */
   async count(filters = {}) {
     try {
-      const whereClause = this._buildWhereClause(filters);
-      return await this.model.count({ where: whereClause });
+      const whereClause = this._buildWhereClause(filters)
+      return await this.model.count({ where: whereClause })
     } catch (error) {
-      throw new Error(`Failed to count ${this.model.name}: ${error.message}`);
+      throw new Error(`Failed to count ${this.model.name}: ${error.message}`)
     }
   }
 
@@ -289,32 +304,34 @@ class CrudService {
         labelField = 'name',
         filters = {},
         sortBy = labelField,
-        sortOrder = 'ASC'
-      } = options;
+        sortOrder = 'ASC',
+      } = options
 
       // Build where clause (only filters, no search)
-      const whereClause = this._buildWhereClause(filters);
+      const whereClause = this._buildWhereClause(filters)
 
       // Build order clause
-      const orderClause = this._buildOrderClause(sortBy, sortOrder);
+      const orderClause = this._buildOrderClause(sortBy, sortOrder)
 
       // Execute query
       const records = await this.model.findAll({
         where: whereClause,
         order: orderClause,
-        attributes: [valueField, labelField]
-      });
+        attributes: [valueField, labelField],
+      })
 
       // Transform to dropdown format
-      return records.map(record => {
-        const dataValues = record.dataValues || record;
+      return records.map((record) => {
+        const dataValues = record.dataValues || record
         return {
           value: dataValues[valueField],
-          label: dataValues[labelField]
-        };
-      });
+          label: dataValues[labelField],
+        }
+      })
     } catch (error) {
-      throw new Error(`Failed to fetch ${this.model.name} dropdown: ${error.message}`);
+      throw new Error(
+        `Failed to fetch ${this.model.name} dropdown: ${error.message}`,
+      )
     }
   }
 
@@ -323,31 +340,35 @@ class CrudService {
    * @private
    */
   _buildWhereClause(filters = {}, search = '') {
-    const whereClause = {};
+    const whereClause = {}
 
     // Add search conditions
     if (search && this.options.searchFields.length > 0) {
-      const searchConditions = this.options.searchFields.map(field => ({
+      const searchConditions = this.options.searchFields.map((field) => ({
         [field]: {
-          [Op.like]: `%${search}%`
-        }
-      }));
-      whereClause[Op.or] = searchConditions;
+          [Op.like]: `%${search}%`,
+        },
+      }))
+      whereClause[Op.or] = searchConditions
     }
 
     // Add filter conditions
-    Object.keys(filters).forEach(key => {
-      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+    Object.keys(filters).forEach((key) => {
+      if (
+        filters[key] !== undefined &&
+        filters[key] !== null &&
+        filters[key] !== ''
+      ) {
         // Handle array values (for IN operations)
         if (Array.isArray(filters[key])) {
-          whereClause[key] = { [Op.in]: filters[key] };
+          whereClause[key] = { [Op.in]: filters[key] }
         } else {
-          whereClause[key] = filters[key];
+          whereClause[key] = filters[key]
         }
       }
-    });
+    })
 
-    return whereClause;
+    return whereClause
   }
 
   /**
@@ -357,9 +378,9 @@ class CrudService {
   _buildOrderClause(sortBy, sortOrder) {
     const validSortOrder = ['ASC', 'DESC'].includes(sortOrder.toUpperCase())
       ? sortOrder.toUpperCase()
-      : this.options.defaultOrder;
+      : this.options.defaultOrder
 
-    return [[sortBy, validSortOrder]];
+    return [[sortBy, validSortOrder]]
   }
 
   /**
@@ -367,8 +388,8 @@ class CrudService {
    * @private
    */
   _buildIncludeClause(additionalIncludes = []) {
-    const includes = [...this.options.defaultIncludes, ...additionalIncludes];
-    return includes.length > 0 ? includes : undefined;
+    const includes = [...this.options.defaultIncludes, ...additionalIncludes]
+    return includes.length > 0 ? includes : undefined
   }
 
   /**
@@ -376,25 +397,25 @@ class CrudService {
    * @private
    */
   _sanitizeResponse(data) {
-    if (!data) return data;
+    if (!data) return data
 
     if (Array.isArray(data)) {
-      return data.map(item => this._sanitizeResponse(item));
+      return data.map((item) => this._sanitizeResponse(item))
     }
 
     if (data.dataValues) {
-      const sanitized = { ...data.dataValues };
-      this.options.excludeFromResponse.forEach(field => {
-        delete sanitized[field];
-      });
-      return sanitized;
+      const sanitized = { ...data.dataValues }
+      this.options.excludeFromResponse.forEach((field) => {
+        delete sanitized[field]
+      })
+      return sanitized
     }
 
-    const sanitized = { ...data };
-    this.options.excludeFromResponse.forEach(field => {
-      delete sanitized[field];
-    });
-    return sanitized;
+    const sanitized = { ...data }
+    this.options.excludeFromResponse.forEach((field) => {
+      delete sanitized[field]
+    })
+    return sanitized
   }
 
   /**
@@ -402,8 +423,8 @@ class CrudService {
    * @private
    */
   _getPrimaryKey() {
-    return this.model.primaryKeyAttribute || 'id';
+    return this.model.primaryKeyAttribute || 'id'
   }
 }
 
-module.exports = CrudService;
+module.exports = CrudService

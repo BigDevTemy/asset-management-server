@@ -1,7 +1,16 @@
-'use strict';
+'use strict'
 
-const CrudService = require('./crudService');
-const { User, Department, Asset, AssetCategory, AssetTransaction, OrganizationSettings } = require('../models');
+const CrudService = require('./crudService')
+const {
+  User,
+  Department,
+  Asset,
+  AssetCategory,
+  AssetTransaction,
+  OrganizationSettings,
+  AssetFormValue,
+  FormFields,
+} = require('../models')
 
 /**
  * Factory function to create CRUD services for different models
@@ -21,12 +30,12 @@ const createUserCrudService = () => {
       {
         model: Department,
         as: 'department',
-        attributes: ['department_id', 'name']
-      }
+        attributes: ['department_id', 'name'],
+      },
     ],
-    excludeFromResponse: ['password_hash']
-  });
-};
+    excludeFromResponse: ['password_hash'],
+  })
+}
 
 // Department CRUD Service Configuration
 const createDepartmentCrudService = () => {
@@ -38,14 +47,14 @@ const createDepartmentCrudService = () => {
     maxPageSize: 100,
     excludeFromSearch: ['created_at'],
     defaultIncludes: [],
-    excludeFromResponse: []
-  });
-};
+    excludeFromResponse: [],
+  })
+}
 
 // Asset CRUD Service Configuration
 const createAssetCrudService = () => {
   return new CrudService(Asset, {
-    searchFields: ['asset_tag', 'serial_number', 'name', 'brand', 'model', 'location'],
+    searchFields: [],
     defaultSort: 'created_at',
     defaultOrder: 'DESC',
     defaultPageSize: 10,
@@ -53,20 +62,26 @@ const createAssetCrudService = () => {
     excludeFromSearch: ['created_at', 'updated_at'],
     defaultIncludes: [
       {
-        model: AssetCategory,
-        as: 'category',
-        attributes: ['category_id', 'name']
+        model: AssetFormValue,
+        as: 'formValues',
+        attributes: ['form_field_id', 'value'],
+        include: [
+          {
+            model: FormFields,
+            as: 'field',
+            attributes: ['label'],
+          },
+        ],
       },
       {
         model: User,
-        as: 'assignedUser',
+        as: 'creator',
         attributes: ['user_id', 'full_name', 'email', 'employee_id'],
-        required: false
-      }
+      },
     ],
-    excludeFromResponse: []
-  });
-};
+    excludeFromResponse: [],
+  })
+}
 
 // Asset Category CRUD Service Configuration
 const createAssetCategoryCrudService = () => {
@@ -78,9 +93,9 @@ const createAssetCategoryCrudService = () => {
     maxPageSize: 100,
     excludeFromSearch: ['created_at', 'updated_at'],
     defaultIncludes: [],
-    excludeFromResponse: []
-  });
-};
+    excludeFromResponse: [],
+  })
+}
 
 // Asset Transaction CRUD Service Configuration
 const createAssetTransactionCrudService = () => {
@@ -100,25 +115,25 @@ const createAssetTransactionCrudService = () => {
           {
             model: AssetCategory,
             as: 'category',
-            attributes: ['category_id', 'name']
-          }
-        ]
+            attributes: ['category_id', 'name'],
+          },
+        ],
       },
       {
         model: User,
         as: 'requestedBy',
-        attributes: ['user_id', 'full_name', 'email', 'employee_id']
+        attributes: ['user_id', 'full_name', 'email', 'employee_id'],
       },
       {
         model: User,
         as: 'requestedTo',
         attributes: ['user_id', 'full_name', 'email', 'employee_id'],
-        required: false
-      }
+        required: false,
+      },
     ],
-    excludeFromResponse: []
-  });
-};
+    excludeFromResponse: [],
+  })
+}
 
 // Organization Settings CRUD Service Configuration
 const createOrganizationSettingsCrudService = () => {
@@ -130,9 +145,9 @@ const createOrganizationSettingsCrudService = () => {
     maxPageSize: 100,
     excludeFromSearch: ['created_at', 'updated_at'],
     defaultIncludes: [],
-    excludeFromResponse: []
-  });
-};
+    excludeFromResponse: [],
+  })
+}
 
 /**
  * Main factory function
@@ -146,16 +161,18 @@ const createCrudService = (modelName) => {
     Asset: createAssetCrudService,
     AssetCategory: createAssetCategoryCrudService,
     AssetTransaction: createAssetTransactionCrudService,
-    OrganizationSettings: createOrganizationSettingsCrudService
-  };
-
-  const serviceFactory = services[modelName];
-  if (!serviceFactory) {
-    throw new Error(`No CRUD service configuration found for model: ${modelName}`);
+    OrganizationSettings: createOrganizationSettingsCrudService,
   }
 
-  return serviceFactory();
-};
+  const serviceFactory = services[modelName]
+  if (!serviceFactory) {
+    throw new Error(
+      `No CRUD service configuration found for model: ${modelName}`,
+    )
+  }
+
+  return serviceFactory()
+}
 
 module.exports = {
   createCrudService,
@@ -164,5 +181,5 @@ module.exports = {
   createAssetCrudService,
   createAssetCategoryCrudService,
   createAssetTransactionCrudService,
-  createOrganizationSettingsCrudService
-};
+  createOrganizationSettingsCrudService,
+}

@@ -109,7 +109,11 @@ const create = async (req, res) => {
         name: assetData.name,
         asset_tag: assetData.asset_tag,
         category_id: assetData.category_id,
-        status: assetData.status
+        status: assetData.status,
+        form_id: assetData.form_id,
+        form_response_keys: assetData.form_responses
+          ? Object.keys(assetData.form_responses)
+          : []
       },
       ip: req.ip || req.connection.remoteAddress
     });
@@ -284,7 +288,8 @@ const changeStatus = async (req, res) => {
     });
     
     // Validate status
-    if (!ASSET_STATUS_ARRAY.includes(status)) {
+    const validStatuses = ASSET_STATUS_ARRAY;
+    if (!validStatuses.includes(status)) {
       logger.warn('Invalid asset status provided', {
         userId: req.user?.user_id,
         assetId: id,

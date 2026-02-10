@@ -1,5 +1,5 @@
-'use strict';
-const { Model } = require('sequelize');
+'use strict'
+const { Model } = require('sequelize')
 
 module.exports = (sequelize, DataTypes) => {
   class AssetCategory extends Model {
@@ -10,54 +10,57 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // AssetCategory has many Assets
-      AssetCategory.hasMany(models.Asset, {
-        foreignKey: 'category_id',
-        as: 'assets'
-      });
+      // AssetCategory.hasMany(models.Asset, {
+      //   foreignKey: 'category_id',
+      //   as: 'assets'
+      // });
     }
   }
-  
-  AssetCategory.init({
-    category_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      autoIncrement: true,
-      primaryKey: true
+
+  AssetCategory.init(
+    {
+      category_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        unique: true,
+      },
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      depreciation_rate: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true,
+        defaultValue: 0.0,
+        comment: 'annual depreciation percentage',
+      },
+      default_warranty_months: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 12,
+      },
+      created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
     },
-    name: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      unique: true
+    {
+      sequelize,
+      modelName: 'AssetCategory',
+      tableName: 'asset_categories',
+      timestamps: true,
+      createdAt: 'created_at',
+      updatedAt: false,
+      underscored: true,
     },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    depreciation_rate: {
-      type: DataTypes.DECIMAL(5, 2),
-      allowNull: true,
-      defaultValue: 0.00,
-      comment: 'annual depreciation percentage'
-    },
-    default_warranty_months: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      defaultValue: 12
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    }
-  }, {
-    sequelize,
-    modelName: 'AssetCategory',
-    tableName: 'asset_categories',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: false,
-    underscored: true
-  });
-  
-  return AssetCategory;
-};
+  )
+
+  return AssetCategory
+}
