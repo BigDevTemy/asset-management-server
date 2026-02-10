@@ -89,16 +89,40 @@ class FormBuilderService {
       }
 
       if (Array.isArray(combinedFields)) {
-        await FormFields.destroy({
+        const existingFields = await FormFields.findAll({
           where: { form_id: formId },
           transaction,
         })
 
-        if (combinedFields.length) {
-          await FormFields.bulkCreate(
-            this._normalizeFields(combinedFields, formId),
-            { transaction },
-          )
+        const normalizedFields = this._normalizeFields(combinedFields, formId, {
+          keepId: true,
+        })
+
+        const idsToKeep = []
+        for (const field of normalizedFields) {
+          const fieldId = Number.isFinite(field.id) ? field.id : null
+          if (fieldId) {
+            idsToKeep.push(fieldId)
+            const { id, ...updateData } = field
+            await FormFields.update(updateData, {
+              where: { id: fieldId, form_id: formId },
+              transaction,
+            })
+          } else if (Object.keys(field).length) {
+            const { id, ...createData } = field
+            await FormFields.create(createData, { transaction })
+          }
+        }
+
+        const fieldsToRemove = existingFields
+          .map((field) => field.id)
+          .filter((id) => !idsToKeep.includes(id))
+
+        if (fieldsToRemove.length) {
+          await FormFields.destroy({
+            where: { id: fieldsToRemove },
+            transaction,
+          })
         }
       }
 
@@ -228,18 +252,28 @@ class FormBuilderService {
     }
   }
 
-  _normalizeFields(formFields, formId) {
-    return formFields.map((field, index) => ({
-      ...field,
-      id: undefined, // let DB autogenerate integer id
-      form_id: formId,
-      position: typeof field.position === 'number' ? field.position : index,
-      options: Array.isArray(field.options) ? field.options : [],
-      allow_multiple:
-        typeof field.allow_multiple === 'boolean'
-          ? field.allow_multiple
-          : false,
-    }))
+  _normalizeFields(formFields, formId, options = {}) {
+    return formFields.map((field, index) => {
+      const normalized = {
+        ...field,
+        form_id: formId,
+        position: typeof field.position === 'number' ? field.position : index,
+        options: Array.isArray(field.options) ? field.options : [],
+        allow_multiple:
+          typeof field.allow_multiple === 'boolean'
+            ? field.allow_multiple
+            : false,
+      }
+
+      if (!options.keepId) {
+        normalized.id = undefined
+      } else if (normalized.id !== undefined && normalized.id !== null) {
+        const parsedId = Number(normalized.id)
+        normalized.id = Number.isFinite(parsedId) ? parsedId : undefined
+      }
+
+      return normalized
+    })
   }
 }
 

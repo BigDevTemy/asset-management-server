@@ -114,6 +114,8 @@ const { requirePermission } = require('../middleware/permissionMiddleware');
  */
 router.get('/my-assets', authMiddleware.authenticate, requirePermission('assets', 'list_own'), assetsController.myAssets);
 
+router.get('/created-by/:userId', authMiddleware.authenticate, requirePermission('assets', 'list_own'), assetsController.listByCreator);
+
 /**
  * @swagger
  * /api/assets/{id}/barcode:
@@ -709,5 +711,6 @@ router.delete('/:id', authMiddleware.authenticate, assetsController.remove);
  *               $ref: '#/components/schemas/Error'
  */
 router.patch('/:id/status', authMiddleware.authenticate, assetsController.changeStatus);
+router.patch('/:id/approval-status', authMiddleware.authenticate, requirePermission('assets', 'update'), assetsController.changeApprovalStatus);
 
 module.exports = router;

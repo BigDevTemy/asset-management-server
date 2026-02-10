@@ -3,9 +3,6 @@
 const {
   Asset,
   AssetTransaction,
-  MaintenanceSchedule,
-  MaintenanceLog,
-  AssetDocument,
   User,
   AssetFormValue,
   FormFields,
@@ -27,6 +24,7 @@ const {
 } = require('../utils/cloudinary')
 const path = require('path')
 const fs = require('fs').promises
+const { Op } = require('sequelize')
 
 /**
  * Custom Asset Service that extends CRUD functionality
@@ -51,11 +49,13 @@ class AssetService {
       const { form_id, form_responses, ...coreAssetData } = assetData || {}
       const sanitizedCoreData = this._sanitizeAssetFields(coreAssetData)
 
-      // Assign the asset to the user who creates it
+      const createdBy = sanitizedCoreData?.created_by ?? user?.user_id ?? null
+
+      // Assign the asset to the user who creates it (but prefer payload when supplied)
       const assetDataWithCreator = {
         ...sanitizedCoreData,
         active_form_id: form_id || coreAssetData?.active_form_id || null,
-        created_by: user?.user_id ?? null,
+        created_by: createdBy,
         status: coreAssetData?.status || 'available',
       }
 
@@ -183,77 +183,55 @@ class AssetService {
 
   async list(queryParams, additionalOptions = {}) {
     const result = await this.crudService.list(queryParams, additionalOptions)
-
-    // Transform formValues to flat object { "Username": "ogomide", "DocumentType": "..." }
-    result.data = result.data.map((asset) => {
-      const fields = {}
-      if (asset.formValues) {
-        asset.formValues.forEach((fv) => {
-          const label = fv.field?.label || fv.form_field_id
-          const key = label.replace(/\s+/g, '') // "Document Type" -> "DocumentType"
-          fields[key] = fv.value
-        })
-      }
-      delete asset.formValues
-      return { ...asset, fields }
-    })
-
-    return result
+    return this._withFlatFields(result)
   }
 
   async getById(id, additionalOptions = {}) {
-    // Default includes for maintenance and documents
-    const defaultIncludes = [
-      {
-        model: MaintenanceSchedule,
-        as: 'maintenanceSchedules',
-        include: [
-          {
-            model: User,
-            as: 'assignedUser',
-            attributes: ['user_id', 'full_name', 'email'],
-          },
-        ],
-        order: [['next_maintenance_date', 'ASC']],
-      },
-      {
-        model: MaintenanceLog,
-        as: 'maintenanceLogs',
-        include: [
-          {
-            model: User,
-            as: 'performedBy',
-            attributes: ['user_id', 'full_name', 'email'],
-          },
-        ],
-        order: [['performed_date', 'DESC']],
-        limit: 10, // Limit recent logs
-      },
-      {
-        model: AssetDocument,
-        as: 'documents',
-        include: [
-          {
-            model: User,
-            as: 'uploadedBy',
-            attributes: ['user_id', 'full_name', 'email'],
-          },
-        ],
-        order: [['created_at', 'DESC']],
-      },
-    ]
-
-    // Merge with additional options
-    const mergedOptions = {
-      ...additionalOptions,
-      include: [...(additionalOptions.include || []), ...defaultIncludes],
-    }
-
-    return this.crudService.getById(id, mergedOptions)
+    const asset = await this.crudService.getById(id, additionalOptions)
+    return this._attachFields(asset)
   }
 
-  async update(id, data, additionalOptions) {
-    return this.crudService.update(id, data, additionalOptions)
+  async update(id, data = {}, additionalOptions = {}) {
+    const { form_id, form_responses, ...coreData } = data
+
+    if (!form_id && !form_responses) {
+      return this.crudService.update(id, data, additionalOptions)
+    }
+
+    const transaction = await Asset.sequelize.transaction()
+
+    try {
+      const sanitizedCoreData = this._sanitizeAssetFields(coreData)
+
+      if (Object.keys(sanitizedCoreData).length > 0) {
+        await Asset.update(sanitizedCoreData, {
+          where: { asset_id: id },
+          transaction,
+        })
+      }
+
+      const asset = await Asset.findByPk(id, { transaction })
+      if (!asset) {
+        await transaction.rollback()
+        return null
+      }
+
+      if (form_id && form_responses && Object.keys(form_responses).length) {
+        await this._saveFormResponses(asset, form_id, form_responses, transaction)
+      }
+
+      await transaction.commit()
+
+      const updated = await this.crudService.getById(id, additionalOptions)
+      return this._attachFields(updated)
+    } catch (error) {
+      await transaction.rollback()
+      throw error
+    }
+  }
+
+  async updateApprovalStatus(id, data, additionalOptions) {
+    return this.update(id, data, additionalOptions)
   }
 
   async delete(id, additionalOptions) {
@@ -321,6 +299,43 @@ class AssetService {
     }
   }
 
+  async getAssetsByCreator(
+    userId,
+    queryParams = {},
+    dateRange = {},
+    additionalOptions = {},
+  ) {
+    const { startDate, endDate } = dateRange
+    const filters = {
+      ...queryParams,
+      created_by: userId,
+    }
+
+    const rangeWhere = {}
+    if (startDate) {
+      rangeWhere.created_at = {
+        ...(rangeWhere.created_at || {}),
+        [Op.gte]: startDate,
+      }
+    }
+
+    if (endDate) {
+      rangeWhere.created_at = {
+        ...(rangeWhere.created_at || {}),
+        [Op.lt]: endDate,
+      }
+    }
+
+    const controllerOptions = {
+      ...additionalOptions,
+      ...(Object.keys(rangeWhere).length ? { where: rangeWhere } : {}),
+    }
+
+    const result = await this.crudService.list(filters, controllerOptions)
+
+    return this._withFlatFields(result)
+  }
+
   /**
    * Persist dynamic form responses for an asset (including camera uploads)
    * @private
@@ -333,7 +348,7 @@ class AssetService {
     })
 
     const fieldMap = new Map(fields.map((field) => [String(field.id), field]))
-    const recordsToCreate = []
+    let savedCount = 0
     const processedResponses = {}
 
     for (const [fieldIdRaw, rawValue] of Object.entries(formResponses || {})) {
@@ -384,20 +399,28 @@ class AssetService {
             ? processedValue
             : JSON.stringify(processedValue)
 
-      recordsToCreate.push({
-        asset_id: asset.asset_id,
-        form_id: formId,
-        form_field_id: field.id,
-        value: valueToStore,
+      const [record, created] = await AssetFormValue.findOrCreate({
+        where: {
+          asset_id: asset.asset_id,
+          form_id: formId,
+          form_field_id: field.id,
+        },
+        defaults: {
+          value: valueToStore,
+        },
+        transaction,
       })
+      if (!created) {
+        await record.update({ value: valueToStore }, { transaction })
+      }
+      savedCount += 1
     }
 
-    if (recordsToCreate.length) {
-      await AssetFormValue.bulkCreate(recordsToCreate, { transaction })
+    if (savedCount) {
       logger.info('Asset form responses saved', {
         assetId: asset.asset_id,
         formId,
-        count: recordsToCreate.length,
+        count: savedCount,
       })
     }
 
@@ -423,6 +446,68 @@ class AssetService {
     })
 
     return sanitized
+  }
+
+  _withFlatFields(result) {
+    if (!result || !Array.isArray(result.data)) {
+      return result
+    }
+
+    return {
+      ...result,
+      data: result.data.map((asset) => this._attachFields(asset)),
+    }
+  }
+
+  _attachFields(asset) {
+    if (!asset) {
+      return asset
+    }
+
+    const fields = {}
+    const responses = []
+    if (asset.formValues) {
+      asset.formValues.forEach((fv) => {
+        const label = fv.field?.label || fv.form_field_id
+        const key = label.replace(/\s+/g, '')
+        const parsedValue = _parseResponseValue(fv.value)
+        fields[key] = parsedValue
+        responses.push({
+          field_id: fv.form_field_id,
+          value: parsedValue,
+        })
+      })
+    }
+
+    const sanitized = { ...asset }
+    delete sanitized.formValues
+
+    const form =
+      asset.activeForm && asset.activeForm.fields
+        ? {
+            form_id: asset.activeForm.form_id,
+            name: asset.activeForm.name,
+            fields: asset.activeForm.fields.map((field) => ({
+              id: field.id,
+              label: field.label,
+              type: field.type,
+              options: field.options || [],
+              allow_multiple: field.allow_multiple,
+              position: field.position,
+            })),
+          }
+        : null
+
+    return { ...sanitized, fields, responses, form }
+  }
+}
+
+function _parseResponseValue(value) {
+  if (value === null || value === undefined) return null
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
   }
 }
 

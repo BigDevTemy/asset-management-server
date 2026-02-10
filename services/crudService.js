@@ -51,6 +51,12 @@ class CrudService {
         ...filters
       } = queryParams
 
+      const {
+        include: extraIncludes = [],
+        where: extraWhere = {},
+        ...restAdditionalOptions
+      } = additionalOptions
+
       // Validate and sanitize pagination parameters
       const pageNumber = Math.max(1, parseInt(page, 10))
       const pageSize = Math.min(
@@ -64,26 +70,29 @@ class CrudService {
 
       // Build where clause
       const whereClause = this._buildWhereClause(filters, search)
+      const mergedWhere = {
+        ...whereClause,
+        ...extraWhere,
+      }
 
       // Build order clause
       const orderClause = this._buildOrderClause(sortBy, sortOrder)
 
       // Build include clause
-      const includeClause = this._buildIncludeClause(additionalOptions.include)
-      // In crudService.js line 70
+      const includeClause = this._buildIncludeClause(extraIncludes)
       console.log('includeClause:', JSON.stringify(includeClause, null, 2))
 
       console.log({ whereClause })
 
       // Execute query
       const { count, rows } = await this.model.findAndCountAll({
-        where: whereClause,
+        where: mergedWhere,
         include: includeClause,
         order: orderClause,
         limit: pageSize,
         offset: offset,
         distinct: true,
-        ...additionalOptions,
+        ...restAdditionalOptions,
       })
 
       // Calculate pagination metadata

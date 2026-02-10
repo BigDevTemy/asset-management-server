@@ -105,36 +105,25 @@ async function generateBarcodeFile(text, outputPath, options = {}) {
 }
 
 /**
- * Generate random barcode number for asset
- * Format: [A-Z][0-9][0-9][asset_id][0-9][0-9]
- * Example: A35247 (for asset_id = 2)
+ * Generate barcode number from asset id
+ * Example: ASSET-000123
  * 
  * @param {number} assetId - Asset ID
  * @returns {string} - Generated barcode string
  */
 function generateAssetBarcodeNumber(assetId) {
-  // Generate random letter A-Z (ASCII 65-90)
-  const randomLetter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-  
-  // Generate first random digit (0-9)
-  const firstDigit = Math.floor(Math.random() * 10);
-  
-  // Generate second random digit (0-9)
-  const secondDigit = Math.floor(Math.random() * 10);
-  
-  // Generate last two random digits (0-9)
-  const thirdDigit = Math.floor(Math.random() * 10);
-  const fourthDigit = Math.floor(Math.random() * 10);
-  
-  // Combine all parts: [Letter][Digit][Digit][AssetID][Digit][Digit]
-  const barcodeNumber = `${randomLetter}${firstDigit}${secondDigit}${assetId}${thirdDigit}${fourthDigit}`;
-  
+  if (!Number.isFinite(assetId)) {
+    throw new Error('Asset ID must be a finite number');
+  }
+
+  const barcodeNumber = `ASSET-${assetId.toString().padStart(6, '0')}`;
+
   logger.info('Generated barcode number', {
     assetId,
     barcodeNumber,
-    pattern: `${randomLetter}(letter) ${firstDigit}${secondDigit}(random) ${assetId}(asset_id) ${thirdDigit}${fourthDigit}(random)`
+    pattern: 'ASSET-<zero-padded asset_id>',
   });
-  
+
   return barcodeNumber;
 }
 

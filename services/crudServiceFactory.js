@@ -10,6 +10,7 @@ const {
   OrganizationSettings,
   AssetFormValue,
   FormFields,
+  FormBuilder,
 } = require('../models')
 
 /**
@@ -77,6 +78,26 @@ const createAssetCrudService = () => {
         model: User,
         as: 'creator',
         attributes: ['user_id', 'full_name', 'email', 'employee_id'],
+      },
+      {
+        model: FormBuilder,
+        as: 'activeForm',
+        attributes: ['form_id', 'name'],
+        required: false,
+        include: [
+          {
+            model: FormFields,
+            as: 'fields',
+            attributes: [
+              'id',
+              'label',
+              'type',
+              'options',
+              'allow_multiple',
+              'position',
+            ],
+          },
+        ],
       },
     ],
     excludeFromResponse: [],

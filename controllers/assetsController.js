@@ -4,6 +4,17 @@ const { ASSET_STATUS_ARRAY } = require('../utils/constants');
 const path = require('path');
 const fs = require('fs').promises;
 
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid date: ${value}`);
+  }
+
+  const isoDate = parsed.toISOString().split('T')[0];
+  return new Date(isoDate);
+};
+
 // Initialize custom asset service
 const assetService = new AssetService();
 
@@ -275,6 +286,75 @@ const remove = async (req, res) => {
 };
 
 // Change asset status
+const APPROVAL_STATUSES = ['PENDING', 'REJECTED', 'APPROVED']
+
+const changeApprovalStatus = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { approval_status, comment } = req.body
+
+    if (!approval_status || !APPROVAL_STATUSES.includes(approval_status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid approval_status. Must be one of: ${APPROVAL_STATUSES.join(', ')}`,
+      })
+    }
+
+    logger.info('Asset approval status change request', {
+      userId: req.user?.user_id,
+      assetId: id,
+      newApprovalStatus: approval_status,
+      comment,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    const asset = await assetService.updateApprovalStatus(id, {
+      approval_status,
+      notes: comment ?? null,
+    })
+
+    if (!asset) {
+      logger.warn('Asset not found for approval change', {
+        userId: req.user?.user_id,
+        assetId: id,
+        ip: req.ip || req.connection.remoteAddress,
+      })
+
+      return res.status(404).json({
+        success: false,
+        message: 'Asset not found',
+      })
+    }
+
+    logger.logBusiness('asset_approval_status_changed', {
+      userId: req.user?.user_id,
+      assetId: id,
+      assetTag: asset.asset_tag,
+      newApprovalStatus: approval_status,
+    })
+
+    res.status(200).json({
+      success: true,
+      message: 'Asset approval status updated successfully',
+      data: asset,
+    })
+  } catch (error) {
+    logger.logError(error, {
+      action: 'change_asset_approval_status',
+      userId: req.user?.user_id,
+      assetId: req.params.id,
+      newApprovalStatus: req.body?.approval_status,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    res.status(400).json({
+      success: false,
+      message: 'Failed to update asset approval status',
+      error: error.message,
+    })
+  }
+}
+
 const changeStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -385,6 +465,84 @@ const myAssets = async (req, res) => {
       success: false,
       message: 'Failed to retrieve your assets',
       error: error.message
+    });
+  }
+};
+
+const listByCreator = async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Valid userId path parameter is required',
+    });
+  }
+
+  let startDate;
+  let endDateRaw;
+  try {
+    startDate = parseDateOnly(req.query.start_date);
+    endDateRaw = parseDateOnly(req.query.end_date);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+
+  if (startDate && endDateRaw && endDateRaw < startDate) {
+    return res.status(400).json({
+      success: false,
+      message: 'end_date must be on or after start_date',
+    });
+  }
+
+  const endDate = endDateRaw
+    ? new Date(endDateRaw.getTime() + 24 * 60 * 60 * 1000)
+    : null;
+
+  try {
+    logger.info('Assets by creator request', {
+      userId: req.user?.user_id,
+      targetUserId: userId,
+      query: req.query,
+      ip: req.ip || req.connection.remoteAddress,
+    });
+
+    const pagingQuery = { ...req.query };
+    delete pagingQuery.start_date;
+    delete pagingQuery.end_date;
+
+    const result = await assetService.getAssetsByCreator(
+      userId,
+      pagingQuery,
+      { startDate, endDate },
+    );
+
+    logger.info('Assets by creator retrieved', {
+      targetUserId: userId,
+      count: result.data?.length || 0,
+      total: result.pagination?.total || 0,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Assets retrieved for creator',
+      ...result,
+    });
+  } catch (error) {
+    logger.logError(error, {
+      action: 'list_assets_by_creator',
+      userId: req.user?.user_id,
+      targetUserId: userId,
+      query: req.query,
+      ip: req.ip || req.connection.remoteAddress,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve assets for creator',
+      error: error.message,
     });
   }
 };
@@ -515,6 +673,8 @@ module.exports = {
   update,
   remove,
   changeStatus,
+  changeApprovalStatus,
   myAssets,
+  listByCreator,
   getBarcode
 };
