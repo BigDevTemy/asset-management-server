@@ -26,6 +26,8 @@ const path = require('path')
 const fs = require('fs').promises
 const { Op } = require('sequelize')
 
+const IDENTIFIER_REGEX = /^[A-Za-z0-9_]+$/
+
 /**
  * Custom Asset Service that extends CRUD functionality
  * Handles asset-specific business logic including automatic transaction creation
@@ -51,6 +53,14 @@ class AssetService {
 
       const createdBy = sanitizedCoreData?.created_by ?? user?.user_id ?? null
 
+      // Auto-generate asset_tag if not supplied
+      if (!sanitizedCoreData.asset_tag) {
+        sanitizedCoreData.asset_tag = await this._generateAssetTag(
+          sanitizedCoreData,
+          transaction,
+        )
+      }
+
       // Assign the asset to the user who creates it (but prefer payload when supplied)
       const assetDataWithCreator = {
         ...sanitizedCoreData,
@@ -60,10 +70,32 @@ class AssetService {
       }
 
       // Create the asset
-      const asset = await Asset.create(assetDataWithCreator, {
-        ...additionalOptions,
-        transaction,
-      })
+      let asset
+      let retries = 0
+      while (retries < 3) {
+        try {
+          asset = await Asset.create(assetDataWithCreator, {
+            ...additionalOptions,
+            transaction,
+          })
+          break
+        } catch (err) {
+          const isUnique =
+            err?.name === 'SequelizeUniqueConstraintError' &&
+            err?.errors?.some((e) => e?.path === 'asset_tag')
+          if (isUnique) {
+            // regenerate tag with next sequence and retry
+            assetDataWithCreator.asset_tag = await this._regenerateTagWithNextSeq(
+              assetDataWithCreator,
+              transaction,
+              retries + 1,
+            )
+            retries += 1
+            continue
+          }
+          throw err
+        }
+      }
 
       // Persist dynamic form responses (if supplied)
       let processedFormResponses = {}
@@ -182,8 +214,94 @@ class AssetService {
   // }
 
   async list(queryParams, additionalOptions = {}) {
-    const result = await this.crudService.list(queryParams, additionalOptions)
+    const normalizedParams = this._normalizeAssetFilters(queryParams)
+    const result = await this.crudService.list(
+      normalizedParams,
+      additionalOptions,
+    )
     return this._withFlatFields(result)
+  }
+
+  /**
+   * Generic lookup for dynamic form options (e.g., dropdowns)
+   * Supports table-based sources with label/value columns.
+   */
+  async lookupOptions(params = {}) {
+    const {
+      type = 'table',
+      table,
+      label_key: labelKey,
+      value_key: valueKey,
+      search,
+      limit = 50,
+      order = 'ASC',
+    } = params
+
+    if (type && type !== 'table') {
+      const err = new Error(`Unsupported options_source type: ${type}`)
+      err.statusCode = 400
+      throw err
+    }
+
+    if (!table || !labelKey || !valueKey) {
+      const missing = ['table', 'label_key', 'value_key'].filter(
+        (key) => !params[key],
+      )
+      const err = new Error(`Missing required parameters: ${missing.join(', ')}`)
+      err.statusCode = 400
+      throw err
+    }
+
+    if (
+      !IDENTIFIER_REGEX.test(table) ||
+      !IDENTIFIER_REGEX.test(labelKey) ||
+      !IDENTIFIER_REGEX.test(valueKey)
+    ) {
+      const err = new Error('Invalid identifier: only letters, numbers, and underscore are allowed')
+      err.statusCode = 400
+      throw err
+    }
+
+    const qi = Asset.sequelize.getQueryInterface()
+    const qg = qi.queryGenerator
+
+    // Validate table and columns exist to avoid SQL injection via identifiers
+    let tableDefinition
+    try {
+      tableDefinition = await qi.describeTable(table)
+    } catch (describeError) {
+      const err = new Error(`Table not found: ${table}`)
+      err.statusCode = 400
+      throw err
+    }
+
+    if (!tableDefinition[labelKey] || !tableDefinition[valueKey]) {
+      const err = new Error(
+        `Columns not found on ${table}: ${[labelKey, valueKey].join(', ')}`,
+      )
+      err.statusCode = 400
+      throw err
+    }
+
+    const safeTable = qg.quoteTable(table)
+    const safeLabel = qg.quoteIdentifier(labelKey)
+    const safeValue = qg.quoteIdentifier(valueKey)
+
+    const cappedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)
+    const sortDirection = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
+
+    let sql = `SELECT ${safeValue} AS value, ${safeLabel} AS label FROM ${safeTable}`
+    const replacements = {}
+
+    if (search) {
+      sql += ` WHERE ${safeLabel} LIKE :search`
+      replacements.search = `%${search}%`
+    }
+
+    sql += ` ORDER BY ${safeLabel} ${sortDirection} LIMIT ${cappedLimit}`
+
+    const [rows] = await Asset.sequelize.query(sql, { replacements })
+    return rows
   }
 
   async getById(id, additionalOptions = {}) {
@@ -270,10 +388,8 @@ class AssetService {
       })
 
       // Add user filter to query parameters
-      const userQueryParams = {
-        ...queryParams,
-        assigned_to: userId, // Filter by assigned_to field
-      }
+      const normalizedParams = this._normalizeAssetFilters(queryParams)
+      const userQueryParams = { ...normalizedParams, assigned_to: userId }
 
       // Use the existing list method with user filter
       const result = await this.crudService.list(
@@ -307,7 +423,7 @@ class AssetService {
   ) {
     const { startDate, endDate } = dateRange
     const filters = {
-      ...queryParams,
+      ...this._normalizeAssetFilters(queryParams),
       created_by: userId,
     }
 
@@ -334,6 +450,189 @@ class AssetService {
     const result = await this.crudService.list(filters, controllerOptions)
 
     return this._withFlatFields(result)
+  }
+
+  _normalizeAssetFilters(params = {}) {
+    const { form_id, ...rest } = params
+    const normalized = { ...rest }
+
+    if (form_id !== undefined) {
+      normalized.active_form_id = form_id
+    }
+
+    return normalized
+  }
+
+  async _generateAssetTag(assetData, transaction) {
+    const { category_id: categoryId, asset_location: assetLocation } = assetData
+
+    // Resolve category code
+    let categoryCode = 'CAT'
+    if (categoryId) {
+      try {
+        const [rows] = await Asset.sequelize.query(
+          'SELECT name FROM asset_categories WHERE category_id = :id LIMIT 1',
+          { replacements: { id: categoryId }, transaction },
+        )
+        const catName = rows?.[0]?.name || 'CAT'
+        categoryCode = this._slugCode(catName, 8)
+      } catch (err) {
+        logger.warn('Failed to resolve category name for asset tag', {
+          categoryId,
+          error: err.message,
+        })
+      }
+    }
+
+    // Resolve location code
+    const locationSource =
+      assetLocation || assetData.location || assetData.asset_location || ''
+    const locationCode = this._slugCode(locationSource || 'LOC', 3)
+
+    const nextSeq = await this._computeNextSeq(categoryId, categoryCode, transaction)
+    const seqPart = String(nextSeq).padStart(3, '0')
+    return `${locationCode}-${categoryCode}-${seqPart}`
+  }
+
+  _slugCode(str, maxLen) {
+    if (!str) return 'GEN'
+    const cleaned = String(str)
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+    const sliced = cleaned.slice(0, Math.max(3, maxLen || 8))
+    return sliced || 'GEN'
+  }
+
+  _extractSeq(tag, categoryCode) {
+    if (!tag) return null
+    const match = String(tag).match(/-(\\d{1,6})$/)
+    return match ? parseInt(match[1], 10) : null
+  }
+
+  async _regenerateTagWithNextSeq(assetData, transaction, offset = 1) {
+    const { category_id: categoryId } = assetData
+    const categoryCode = this._slugCode(
+      assetData.category_code || assetData.category || 'CAT',
+      8,
+    )
+    const locationCode = this._slugCode(
+      assetData.asset_location || assetData.location || 'LOC',
+      3,
+    )
+
+    const nextSeq = (await this._computeNextSeq(categoryId, categoryCode, transaction)) + offset
+    const seqPart = String(nextSeq).padStart(3, '0')
+    return `${locationCode}-${categoryCode}-${seqPart}`
+  }
+
+  async _computeNextSeq(categoryId, categoryCode, transaction) {
+    try {
+      const whereClause = categoryId
+        ? 'category_id = :cid'
+        : 'category_id IS NULL'
+
+      const replacements = categoryId ? { cid: categoryId } : {}
+
+      const [rows] = await Asset.sequelize.query(
+        `
+        SELECT asset_tag
+        FROM assets
+        WHERE ${whereClause}
+          AND asset_tag IS NOT NULL
+        ORDER BY asset_id DESC
+        LIMIT 200
+        `,
+        { replacements, transaction },
+      )
+
+      const maxSeq = rows
+        .map((r) => this._extractSeq(r.asset_tag, categoryCode))
+        .filter((n) => Number.isFinite(n))
+        .reduce((a, b) => Math.max(a, b), 0)
+
+      return maxSeq + 1
+    } catch (err) {
+      logger.warn('Failed to compute next asset tag sequence, defaulting to 1', {
+        categoryId,
+        error: err.message,
+      })
+      return 1
+    }
+  }
+
+  _parseHierarchyLevels(raw) {
+    if (!raw) return []
+    if (Array.isArray(raw)) return raw
+    if (typeof raw === 'object') return Object.values(raw)
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+
+  async _resolveHierarchySelection(field, rawValue) {
+    if (!rawValue || typeof rawValue !== 'object') {
+      return { selections: rawValue, resolved: [] }
+    }
+
+    const levels = this._parseHierarchyLevels(field.hierarchy_levels)
+    if (!levels.length) return { selections: rawValue, resolved: [] }
+
+    const qi = Asset.sequelize.getQueryInterface()
+    const qg = qi.queryGenerator
+
+    const resolved = []
+    for (const level of levels) {
+      if (!level) continue
+      const { name, table, label_key: labelKey, value_key: valueKey } = level
+      if (!name || !table || !labelKey || !valueKey) continue
+
+      if (
+        !IDENTIFIER_REGEX.test(table) ||
+        !IDENTIFIER_REGEX.test(labelKey) ||
+        !IDENTIFIER_REGEX.test(valueKey)
+      ) {
+        logger.warn('Hierarchy level contains invalid identifiers, skipping', {
+          fieldId: field.id,
+          level,
+        })
+        continue
+      }
+
+      const id =
+        rawValue[name] ??
+        rawValue[name?.toLowerCase?.()] ??
+        rawValue[String(name).replace(/\s+/g, '_')]
+
+      if (id === undefined || id === null) continue
+
+      const sql = `SELECT ${qg.quoteIdentifier(
+        labelKey,
+      )} AS label FROM ${qg.quoteTable(table)} WHERE ${qg.quoteIdentifier(
+        valueKey,
+      )} = :id LIMIT 1`
+
+      let label = null
+      try {
+        const [rows] = await Asset.sequelize.query(sql, { replacements: { id } })
+        label = rows?.[0]?.label ?? null
+      } catch (err) {
+        logger.warn('Failed to resolve hierarchy label', {
+          fieldId: field.id,
+          level,
+          error: err.message,
+        })
+      }
+
+      resolved.push({ level: name, id, label })
+    }
+
+    return { selections: rawValue, resolved }
   }
 
   /**
@@ -388,6 +687,8 @@ class AssetService {
         }
 
         processedValue = uploadedUrls
+      } else if (field.type === 'hierarchical_select') {
+        processedValue = await this._resolveHierarchySelection(field, rawValue)
       }
 
       processedResponses[String(field.id)] = processedValue
@@ -474,6 +775,7 @@ class AssetService {
         fields[key] = parsedValue
         responses.push({
           field_id: fv.form_field_id,
+          field_type: fv.field?.type || null,
           value: parsedValue,
         })
       })

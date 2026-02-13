@@ -74,6 +74,19 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
         primaryKey: true,
       },
+      asset_tag: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        unique: true,
+      },
+      category_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      asset_location: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
       status: {
         type: DataTypes.ENUM(...SEQUELIZE_ENUMS.ASSET_STATUS),
         allowNull: false,
@@ -93,6 +106,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       active_form_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      assigned_to: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },

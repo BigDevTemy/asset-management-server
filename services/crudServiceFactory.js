@@ -70,7 +70,7 @@ const createAssetCrudService = () => {
           {
             model: FormFields,
             as: 'field',
-            attributes: ['label'],
+            attributes: ['label', 'type'],
           },
         ],
       },
@@ -93,6 +93,8 @@ const createAssetCrudService = () => {
               'label',
               'type',
               'options',
+              'options_source',
+              'hierarchy_levels',
               'allow_multiple',
               'position',
             ],

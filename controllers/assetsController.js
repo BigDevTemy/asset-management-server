@@ -18,6 +18,33 @@ const parseDateOnly = (value) => {
 // Initialize custom asset service
 const assetService = new AssetService();
 
+// Dynamic lookup for dropdown/table-backed options
+const lookup = async (req, res) => {
+  try {
+    const data = await assetService.lookupOptions(req.query);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lookup data retrieved successfully',
+      data,
+    });
+  } catch (error) {
+    logger.logError(error, {
+      action: 'lookup_options',
+      userId: req.user?.user_id,
+      query: req.query,
+      ip: req.ip || req.connection.remoteAddress
+    });
+
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.statusCode ? error.message : 'Failed to retrieve lookup data',
+      error: error.message,
+    });
+  }
+};
+
 // List all assets with pagination and search
 const list = async (req, res) => {
   try {
@@ -667,6 +694,7 @@ const getBarcode = async (req, res) => {
 };
 
 module.exports = {
+  lookup,
   list,
   getById,
   create,

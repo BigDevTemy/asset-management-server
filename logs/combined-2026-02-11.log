@@ -1,0 +1,6 @@
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-02-11 09:46:16:4616","url":"/api/assets/created-by/7?start_date=2026-02-11&end_date=2026-02-11","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36","userId":null}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-02-11 09:46:17:4617","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{"end_date":"2026-02-11","start_date":"2026-02-11"},"targetUserId":7,"timestamp":"2026-02-11 09:46:17:4617","userId":7}
+{"count":0,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-02-11 09:46:17:4617","total":0}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"922ms","statusCode":200,"timestamp":"2026-02-11 09:46:17:4617","url":"/api/assets/created-by/7?start_date=2026-02-11&end_date=2026-02-11"}
+{"level":"http","message":"::1 - - [11/Feb/2026:08:46:17 +0000] \"GET /api/assets/created-by/7?start_date=2026-02-11&end_date=2026-02-11 HTTP/1.1\" 200 285 \"http://localhost:3000/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36\"","timestamp":"2026-02-11 09:46:17:4617"}

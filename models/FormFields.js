@@ -45,6 +45,7 @@ module.exports = (sequelize, DataTypes) => {
           'date',
           'location',
           'camera',
+          'hierarchical_select',
         ),
         allowNull: false,
       },
@@ -61,6 +62,16 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.JSON,
         allowNull: false,
         defaultValue: [],
+      },
+      options_source: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: null,
+      },
+      hierarchy_levels: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: null,
       },
       allow_multiple: {
         type: DataTypes.BOOLEAN,

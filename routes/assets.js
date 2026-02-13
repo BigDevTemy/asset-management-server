@@ -11,6 +11,87 @@ const { requirePermission } = require('../middleware/permissionMiddleware');
  *   description: Asset management operations
  */
 
+/**
+ * @swagger
+ * /api/assets/lookup:
+ *   get:
+ *     summary: Dynamic lookup for dropdown/table-backed form fields
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: table
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Source table name (e.g., asset_categories)
+ *       - in: query
+ *         name: label_key
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Column to use as display label (e.g., name)
+ *       - in: query
+ *         name: value_key
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Column to use as option value (e.g., category_id)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Optional substring filter applied to the label column
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 200
+ *           default: 50
+ *         description: Max rows to return
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: ASC
+ *         description: Sort direction by label
+ *     responses:
+ *       200:
+ *         description: Lookup options retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Success'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           value:
+ *                             type: string
+ *                           label:
+ *                             type: string
+ *             example:
+ *               success: true
+ *               data:
+ *                 - value: 1
+ *                   label: "Laptops"
+ *                 - value: 2
+ *                   label: "Printers"
+ *       400:
+ *         description: Validation error (missing/invalid identifiers)
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/lookup', authMiddleware.authenticate, assetsController.lookup);
 
 /**
  * @swagger

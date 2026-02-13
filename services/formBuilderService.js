@@ -70,6 +70,29 @@ class FormBuilderService {
     const { fields = [], formFields, ...formData } = payload
     const combinedFields =
       Array.isArray(formFields) && formFields.length ? formFields : fields
+
+    // Track which props were explicitly provided so we don't overwrite existing values unintentionally
+    const providedOptionsById = new Map()
+    const providedOptionsSourceById = new Map()
+    const providedHierarchyById = new Map()
+    combinedFields.forEach((field) => {
+      const fieldId = Number.isFinite(Number(field.id)) ? Number(field.id) : null
+      if (fieldId) {
+        providedOptionsById.set(
+          fieldId,
+          Object.prototype.hasOwnProperty.call(field, 'options'),
+        )
+        providedOptionsSourceById.set(
+          fieldId,
+          Object.prototype.hasOwnProperty.call(field, 'options_source'),
+        )
+        providedHierarchyById.set(
+          fieldId,
+          Object.prototype.hasOwnProperty.call(field, 'hierarchy_levels'),
+        )
+      }
+    })
+
     const transaction =
       additionalOptions.transaction ||
       (await FormBuilder.sequelize.transaction())
@@ -104,6 +127,21 @@ class FormBuilderService {
           if (fieldId) {
             idsToKeep.push(fieldId)
             const { id, ...updateData } = field
+            const existingField = existingFields.find((f) => f.id === fieldId)
+
+            // Preserve existing options/options_source if the update payload omitted them
+            if (existingField) {
+              if (!providedOptionsById.get(fieldId)) {
+                updateData.options = existingField.options
+              }
+              if (!providedOptionsSourceById.get(fieldId)) {
+                updateData.options_source = existingField.options_source
+              }
+              if (!providedHierarchyById.get(fieldId)) {
+                updateData.hierarchy_levels = existingField.hierarchy_levels
+              }
+            }
+
             await FormFields.update(updateData, {
               where: { id: fieldId, form_id: formId },
               transaction,
@@ -254,11 +292,19 @@ class FormBuilderService {
 
   _normalizeFields(formFields, formId, options = {}) {
     return formFields.map((field, index) => {
+      const hierarchyLevels = this._parseJsonField(field.hierarchy_levels)
+
       const normalized = {
         ...field,
         form_id: formId,
         position: typeof field.position === 'number' ? field.position : index,
         options: Array.isArray(field.options) ? field.options : [],
+        options_source:
+          (field.type === 'select' || field.type === 'hierarchical_select') &&
+          field.options_source
+            ? field.options_source
+            : null,
+        hierarchy_levels: Array.isArray(hierarchyLevels) ? hierarchyLevels : null,
         allow_multiple:
           typeof field.allow_multiple === 'boolean'
             ? field.allow_multiple
@@ -274,6 +320,26 @@ class FormBuilderService {
 
       return normalized
     })
+  }
+
+  _parseJsonField(rawValue) {
+    if (rawValue === null || rawValue === undefined) return null
+    if (Array.isArray(rawValue) || typeof rawValue === 'object') return rawValue
+
+    if (typeof rawValue === 'string') {
+      try {
+        const parsed = JSON.parse(rawValue)
+        return parsed
+      } catch (err) {
+        logger.warn('Failed to parse JSON field', {
+          rawValue,
+          error: err.message,
+        })
+        return null
+      }
+    }
+
+    return null
   }
 }
 
