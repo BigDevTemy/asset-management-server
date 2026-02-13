@@ -327,16 +327,23 @@ class FormBuilderService {
     if (Array.isArray(rawValue) || typeof rawValue === 'object') return rawValue
 
     if (typeof rawValue === 'string') {
-      try {
-        const parsed = JSON.parse(rawValue)
-        return parsed
-      } catch (err) {
-        logger.warn('Failed to parse JSON field', {
-          rawValue,
-          error: err.message,
-        })
-        return null
+      let value = rawValue
+      let depth = 0
+      while (typeof value === 'string' && depth < 3) {
+        try {
+          const parsed = JSON.parse(value)
+          if (Array.isArray(parsed) || typeof parsed === 'object') return parsed
+          value = parsed
+        } catch (err) {
+          logger.warn('Failed to parse JSON field', {
+            rawValue,
+            error: err.message,
+          })
+          return null
+        }
+        depth += 1
       }
+      return Array.isArray(value) || typeof value === 'object' ? value : null
     }
 
     return null
