@@ -335,6 +335,12 @@ class AssetService {
     return this._attachFields(asset)
   }
 
+  async getByBarcode(barcodeText, additionalOptions = {}) {
+    const parsedId = this._parseBarcodeToId(barcodeText)
+    if (!parsedId) return null
+    return this.getById(parsedId, additionalOptions)
+  }
+
   async update(id, data = {}, additionalOptions = {}) {
     const { form_id, form_responses, ...coreData } = data
 
@@ -531,8 +537,16 @@ class AssetService {
 
   _extractSeq(tag, categoryCode) {
     if (!tag) return null
-    const match = String(tag).match(/-(\\d{1,6})$/)
+    const match = String(tag).match(/-(\d{1,6})$/)
     return match ? parseInt(match[1], 10) : null
+  }
+
+  _parseBarcodeToId(barcodeText) {
+    if (!barcodeText || typeof barcodeText !== 'string') return null
+    const match = barcodeText.match(/ASSET-(\d+)/i)
+    if (!match) return null
+    const id = parseInt(match[1], 10)
+    return Number.isFinite(id) ? id : null
   }
 
   async _regenerateTagWithNextSeq(assetData, transaction, offset = 1) {

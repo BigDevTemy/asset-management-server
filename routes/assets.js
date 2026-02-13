@@ -95,6 +95,29 @@ router.get('/lookup', authMiddleware.authenticate, assetsController.lookup);
 
 /**
  * @swagger
+ * /api/assets/barcode/{code}:
+ *   get:
+ *     summary: Get asset by barcode text (ASSET-######)
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Barcode text (e.g., ASSET-000052)
+ *     responses:
+ *       200:
+ *         description: Asset retrieved successfully
+ *       404:
+ *         description: Asset not found
+ */
+router.get('/barcode/:code', authMiddleware.authenticate, assetsController.getByBarcode);
+
+/**
+ * @swagger
  * /api/assets/my-assets:
  *   get:
  *     summary: Get assets assigned to the current user

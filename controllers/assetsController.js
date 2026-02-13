@@ -18,6 +18,40 @@ const parseDateOnly = (value) => {
 // Initialize custom asset service
 const assetService = new AssetService();
 
+// Lookup asset by barcode text (ASSET-######)
+const getByBarcode = async (req, res) => {
+  try {
+    const { code } = req.params;
+    const asset = await assetService.getByBarcode(code);
+
+    if (!asset) {
+      return res.status(404).json({
+        success: false,
+        message: 'Asset not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Asset retrieved successfully',
+      data: asset,
+    });
+  } catch (error) {
+    logger.logError(error, {
+      action: 'get_asset_by_barcode',
+      userId: req.user?.user_id,
+      barcode: req.params.code,
+      ip: req.ip || req.connection.remoteAddress
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve asset by barcode',
+      error: error.message
+    });
+  }
+};
+
 // Dynamic lookup for dropdown/table-backed options
 const lookup = async (req, res) => {
   try {
@@ -694,6 +728,7 @@ const getBarcode = async (req, res) => {
 };
 
 module.exports = {
+  getByBarcode,
   lookup,
   list,
   getById,
