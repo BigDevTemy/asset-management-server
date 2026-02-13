@@ -232,6 +232,8 @@ class AssetService {
       table,
       label_key: labelKey,
       value_key: valueKey,
+      parent_key: parentKey,
+      parent_id: parentId,
       search,
       limit = 50,
       order = 'ASC',
@@ -283,19 +285,43 @@ class AssetService {
       throw err
     }
 
+    if (parentKey) {
+      if (!IDENTIFIER_REGEX.test(parentKey)) {
+        const err = new Error('Invalid parent_key: only letters, numbers, and underscore are allowed')
+        err.statusCode = 400
+        throw err
+      }
+      if (!tableDefinition[parentKey]) {
+        const err = new Error(`Parent column not found on ${table}: ${parentKey}`)
+        err.statusCode = 400
+        throw err
+      }
+    }
+
     const safeTable = qg.quoteTable(table)
     const safeLabel = qg.quoteIdentifier(labelKey)
     const safeValue = qg.quoteIdentifier(valueKey)
+    const safeParent = parentKey ? qg.quoteIdentifier(parentKey) : null
 
     const cappedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)
     const sortDirection = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
 
     let sql = `SELECT ${safeValue} AS value, ${safeLabel} AS label FROM ${safeTable}`
     const replacements = {}
+    const whereClauses = []
 
     if (search) {
-      sql += ` WHERE ${safeLabel} LIKE :search`
+      whereClauses.push(`${safeLabel} LIKE :search`)
       replacements.search = `%${search}%`
+    }
+
+    if (parentKey && parentId !== undefined && parentId !== null && parentId !== '') {
+      whereClauses.push(`${safeParent} = :parentId`)
+      replacements.parentId = parentId
+    }
+
+    if (whereClauses.length) {
+      sql += ` WHERE ${whereClauses.join(' AND ')}`
     }
 
     sql += ` ORDER BY ${safeLabel} ${sortDirection} LIMIT ${cappedLimit}`
