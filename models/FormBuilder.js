@@ -27,6 +27,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      asset_tag_config: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: null,
+      },
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

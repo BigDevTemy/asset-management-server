@@ -29,13 +29,17 @@ class FormBuilderService {
   async create(formPayload, additionalOptions = {}) {
     const { fields = [], formFields = [], ...formData } = formPayload
     const combinedFields = formFields.length ? formFields : fields
+    const normalizedFormData = {
+      ...formData,
+      asset_tag_config: this._parseJsonLike(formData.asset_tag_config),
+    }
     const transaction =
       additionalOptions.transaction ||
       (await FormBuilder.sequelize.transaction())
     const externalTransaction = Boolean(additionalOptions.transaction)
 
     try {
-      const form = await FormBuilder.create(formData, {
+      const form = await FormBuilder.create(normalizedFormData, {
         ...additionalOptions,
         transaction,
       })
@@ -70,6 +74,12 @@ class FormBuilderService {
     const { fields = [], formFields, ...formData } = payload
     const combinedFields =
       Array.isArray(formFields) && formFields.length ? formFields : fields
+    const normalizedFormData = {
+      ...formData,
+      ...(Object.prototype.hasOwnProperty.call(formData, 'asset_tag_config')
+        ? { asset_tag_config: this._parseJsonLike(formData.asset_tag_config) }
+        : {}),
+    }
 
     // Track which props were explicitly provided so we don't overwrite existing values unintentionally
     const providedOptionsById = new Map()
@@ -107,8 +117,8 @@ class FormBuilderService {
         return null
       }
 
-      if (Object.keys(formData).length) {
-        await form.update(formData, { transaction })
+      if (Object.keys(normalizedFormData).length) {
+        await form.update(normalizedFormData, { transaction })
       }
 
       if (Array.isArray(combinedFields)) {
@@ -347,6 +357,20 @@ class FormBuilderService {
     }
 
     return null
+  }
+
+  _parseJsonLike(rawValue) {
+    if (rawValue === undefined) return undefined
+    if (rawValue === null) return null
+    if (typeof rawValue === 'object') return rawValue
+    if (typeof rawValue !== 'string') return rawValue
+
+    try {
+      const parsed = JSON.parse(rawValue)
+      return parsed
+    } catch {
+      return rawValue
+    }
   }
 }
 

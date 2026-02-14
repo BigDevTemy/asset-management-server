@@ -89,17 +89,22 @@ const list = async (req, res) => {
     });
     
     const result = await assetService.list(req.query);
+    const dataWithTag = (result.data || []).map((asset) => ({
+      ...asset,
+      asset_tag: asset.asset_tag ?? asset.assetTag ?? null,
+    }));
     
     logger.info('Assets list successful', {
       userId: req.user?.user_id,
-      count: result.data?.length || 0,
+      count: dataWithTag.length || 0,
       total: result.pagination?.total || 0
     });
     
     res.status(200).json({
       success: true,
       message: 'Assets retrieved successfully',
-      ...result
+      ...result,
+      data: dataWithTag
     });
   } catch (error) {
     logger.logError(error, {

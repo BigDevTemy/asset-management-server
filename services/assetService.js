@@ -6,6 +6,7 @@ const {
   User,
   AssetFormValue,
   FormFields,
+  FormBuilder,
 } = require('../models')
 const { createAssetCrudService } = require('./crudServiceFactory')
 const logger = require('../utils/logger')
@@ -55,10 +56,17 @@ class AssetService {
 
       // Auto-generate asset_tag if not supplied
       if (!sanitizedCoreData.asset_tag) {
-        sanitizedCoreData.asset_tag = await this._generateAssetTag(
-          sanitizedCoreData,
+        const formTagConfig = form_id
+          ? await this._getFormTagConfig(form_id, transaction)
+          : null
+
+        sanitizedCoreData.asset_tag = await this._generateAssetTag({
+          assetData: sanitizedCoreData,
+          formId: form_id,
+          formResponses: form_responses,
+          tagConfig: formTagConfig,
           transaction,
-        )
+        })
       }
 
       // Assign the asset to the user who creates it (but prefer payload when supplied)
@@ -84,12 +92,22 @@ class AssetService {
             err?.name === 'SequelizeUniqueConstraintError' &&
             err?.errors?.some((e) => e?.path === 'asset_tag')
           if (isUnique) {
-            // regenerate tag with next sequence and retry
-            assetDataWithCreator.asset_tag = await this._regenerateTagWithNextSeq(
-              assetDataWithCreator,
+            // regenerate tag with next sequence bump and retry
+            const formTagConfig = assetDataWithCreator.active_form_id
+              ? await this._getFormTagConfig(
+                  assetDataWithCreator.active_form_id,
+                  transaction,
+                )
+              : null
+
+            assetDataWithCreator.asset_tag = await this._generateAssetTag({
+              assetData: assetDataWithCreator,
+              formId: assetDataWithCreator.active_form_id,
+              formResponses: form_responses,
+              tagConfig: formTagConfig,
               transaction,
-              retries + 1,
-            )
+              sequenceOffset: retries + 1,
+            })
             retries += 1
             continue
           }
@@ -495,7 +513,75 @@ class AssetService {
     return normalized
   }
 
-  async _generateAssetTag(assetData, transaction) {
+  async _generateAssetTag({
+    assetData = {},
+    formId = null,
+    formResponses = {},
+    tagConfig = null,
+    transaction,
+    sequenceOffset = 0,
+  }) {
+    // If form-based config is available and enabled, build tag from segments
+    if (tagConfig?.enabled && Array.isArray(tagConfig.segments)) {
+      const separator =
+        typeof tagConfig.separator === 'string' && tagConfig.separator.length
+          ? tagConfig.separator
+          : '-'
+
+      const parts = []
+      const segments = tagConfig.segments
+
+      const getFieldValue = (fieldId) => {
+        const key = String(fieldId)
+        if (
+          formResponses &&
+          typeof formResponses === 'object' &&
+          Object.prototype.hasOwnProperty.call(formResponses, key)
+        ) {
+          return formResponses[key]
+        }
+        return undefined
+      }
+
+      for (const segment of segments) {
+        if (!segment || !segment.type) continue
+
+        if (segment.type === 'field') {
+          const value = getFieldValue(segment.field_id)
+          if (value === undefined || value === null || value === '') {
+            throw new Error(
+              `Missing value for asset tag field_id ${segment.field_id}`,
+            )
+          }
+          parts.push(this._valueToTagChunk(value, segment.max_length || 12))
+        } else if (segment.type === 'sequence') {
+          const length = Number(segment.length) || 4
+          const start = Number(segment.start) || 1
+          const prefix = parts.join(separator)
+          const nextSeq = await this._computeConfigSequence(
+            prefix,
+            separator,
+            length,
+            start + sequenceOffset,
+            transaction,
+          )
+          const seqPart = String(nextSeq).padStart(length, '0')
+          parts.push(seqPart)
+        } else {
+          logger.warn('Unknown asset_tag_config segment type, skipping', {
+            segment,
+          })
+        }
+      }
+
+      if (!parts.length) {
+        throw new Error('Asset tag configuration produced no segments')
+      }
+
+      return parts.join(separator)
+    }
+
+    // Fallback to legacy generation using category/location
     const { category_id: categoryId, asset_location: assetLocation } = assetData
 
     // Resolve category code
@@ -522,7 +608,7 @@ class AssetService {
     const locationCode = this._slugCode(locationSource || 'LOC', 3)
 
     const nextSeq = await this._computeNextSeq(categoryId, categoryCode, transaction)
-    const seqPart = String(nextSeq).padStart(3, '0')
+    const seqPart = String(nextSeq + sequenceOffset).padStart(3, '0')
     return `${locationCode}-${categoryCode}-${seqPart}`
   }
 
@@ -550,19 +636,63 @@ class AssetService {
   }
 
   async _regenerateTagWithNextSeq(assetData, transaction, offset = 1) {
-    const { category_id: categoryId } = assetData
-    const categoryCode = this._slugCode(
-      assetData.category_code || assetData.category || 'CAT',
-      8,
-    )
-    const locationCode = this._slugCode(
-      assetData.asset_location || assetData.location || 'LOC',
-      3,
+    // Kept for compatibility; now defers to _generateAssetTag with offset
+    return this._generateAssetTag({
+      assetData,
+      transaction,
+      sequenceOffset: offset,
+    })
+  }
+
+  async _getFormTagConfig(formId, transaction) {
+    if (!formId) return null
+    const form = await FormBuilder.findByPk(formId, { transaction })
+    return form?.asset_tag_config || null
+  }
+
+  _valueToTagChunk(value, maxLen = 12) {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'object') {
+      try {
+        const flat = JSON.stringify(value)
+        return this._slugCode(flat, maxLen)
+      } catch {
+        return this._slugCode(String(value), maxLen)
+      }
+    }
+    return this._slugCode(String(value), maxLen)
+  }
+
+  async _computeConfigSequence(prefix, separator, length, start, transaction) {
+    const safePrefix = prefix || ''
+    const pattern = safePrefix
+      ? `${safePrefix}${separator}%`
+      : `%`
+
+    const [rows] = await Asset.sequelize.query(
+      `
+        SELECT asset_tag
+        FROM assets
+        WHERE asset_tag LIKE :pattern
+        ORDER BY asset_id DESC
+        LIMIT 200
+      `,
+      { replacements: { pattern }, transaction },
     )
 
-    const nextSeq = (await this._computeNextSeq(categoryId, categoryCode, transaction)) + offset
-    const seqPart = String(nextSeq).padStart(3, '0')
-    return `${locationCode}-${categoryCode}-${seqPart}`
+    const prefixWithSep = safePrefix ? `${safePrefix}${separator}` : ''
+    const maxSeq = rows
+      .map((r) => {
+        const tag = String(r.asset_tag || '')
+        if (!tag.startsWith(prefixWithSep)) return null
+        const remainder = tag.slice(prefixWithSep.length)
+        const match = remainder.match(/^(\\d+)/)
+        return match ? parseInt(match[1], 10) : null
+      })
+      .filter((n) => Number.isFinite(n))
+      .reduce((a, b) => Math.max(a, b), start - 1)
+
+    return maxSeq + 1
   }
 
   async _computeNextSeq(categoryId, categoryCode, transaction) {
