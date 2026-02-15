@@ -79,6 +79,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         unique: true,
       },
+      asset_tag_group: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
       category_id: {
         type: DataTypes.INTEGER,
         allowNull: true,

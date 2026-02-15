@@ -32,6 +32,9 @@ class FormBuilderService {
     const normalizedFormData = {
       ...formData,
       asset_tag_config: this._parseJsonLike(formData.asset_tag_config),
+      asset_tag_group_config: this._parseJsonLike(
+        formData.asset_tag_group_config,
+      ),
     }
     const transaction =
       additionalOptions.transaction ||
@@ -78,6 +81,16 @@ class FormBuilderService {
       ...formData,
       ...(Object.prototype.hasOwnProperty.call(formData, 'asset_tag_config')
         ? { asset_tag_config: this._parseJsonLike(formData.asset_tag_config) }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(
+        formData,
+        'asset_tag_group_config',
+      )
+        ? {
+            asset_tag_group_config: this._parseJsonLike(
+              formData.asset_tag_group_config,
+            ),
+          }
         : {}),
     }
 
@@ -194,11 +207,16 @@ class FormBuilderService {
   }
 
   async list(queryParams, additionalOptions = {}) {
-    return this.crudService.list(queryParams, additionalOptions)
+    const result = await this.crudService.list(queryParams, additionalOptions)
+    if (Array.isArray(result?.data)) {
+      result.data = result.data.map((form) => this._parseConfigFields(form))
+    }
+    return result
   }
 
   async getById(formId, additionalOptions = {}) {
-    return this.crudService.getById(formId, additionalOptions)
+    const form = await this.crudService.getById(formId, additionalOptions)
+    return this._parseConfigFields(form)
   }
 
   async delete(formId, additionalOptions = {}) {
@@ -370,6 +388,15 @@ class FormBuilderService {
       return parsed
     } catch {
       return rawValue
+    }
+  }
+
+  _parseConfigFields(form) {
+    if (!form || typeof form !== 'object') return form
+    return {
+      ...form,
+      asset_tag_config: this._parseJsonLike(form.asset_tag_config),
+      asset_tag_group_config: this._parseJsonLike(form.asset_tag_group_config),
     }
   }
 }

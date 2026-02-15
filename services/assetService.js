@@ -54,20 +54,42 @@ class AssetService {
 
       const createdBy = sanitizedCoreData?.created_by ?? user?.user_id ?? null
 
-      // Auto-generate asset_tag if not supplied
-      if (!sanitizedCoreData.asset_tag) {
-        const formTagConfig = form_id
-          ? await this._getFormTagConfig(form_id, transaction)
-          : null
+      const formTagConfigs = form_id
+        ? await this._getFormTagConfigs(form_id, transaction)
+        : {}
 
-        sanitizedCoreData.asset_tag = await this._generateAssetTag({
-          assetData: sanitizedCoreData,
-          formId: form_id,
-          formResponses: form_responses,
-          tagConfig: formTagConfig,
-          transaction,
-        })
+      const generateTags = async (offset = 0, force = false) => {
+        const tags = {}
+
+        if (force || !sanitizedCoreData.asset_tag) {
+          tags.asset_tag = await this._generateAssetTag({
+            assetData: { ...sanitizedCoreData, ...tags },
+            formId: form_id,
+            formResponses: form_responses,
+            tagConfig: formTagConfigs?.asset_tag_config || null,
+            transaction,
+            sequenceOffset: offset,
+          })
+        }
+
+        if (
+          formTagConfigs?.asset_tag_group_config?.enabled &&
+          (force || !sanitizedCoreData.asset_tag_group)
+        ) {
+          tags.asset_tag_group = await this._generateAssetTagGroup({
+            assetData: { ...sanitizedCoreData, ...tags },
+            formId: form_id,
+            formResponses: form_responses,
+            tagGroupConfig: formTagConfigs.asset_tag_group_config,
+            transaction,
+            sequenceOffset: offset,
+          })
+        }
+
+        return tags
       }
+
+      Object.assign(sanitizedCoreData, await generateTags())
 
       // Assign the asset to the user who creates it (but prefer payload when supplied)
       const assetDataWithCreator = {
@@ -93,21 +115,12 @@ class AssetService {
             err?.errors?.some((e) => e?.path === 'asset_tag')
           if (isUnique) {
             // regenerate tag with next sequence bump and retry
-            const formTagConfig = assetDataWithCreator.active_form_id
-              ? await this._getFormTagConfig(
-                  assetDataWithCreator.active_form_id,
-                  transaction,
-                )
-              : null
-
-            assetDataWithCreator.asset_tag = await this._generateAssetTag({
-              assetData: assetDataWithCreator,
-              formId: assetDataWithCreator.active_form_id,
-              formResponses: form_responses,
-              tagConfig: formTagConfig,
-              transaction,
-              sequenceOffset: retries + 1,
-            })
+            const regenerated = await generateTags(retries + 1, true)
+            assetDataWithCreator.asset_tag =
+              regenerated.asset_tag || assetDataWithCreator.asset_tag
+            if (regenerated.asset_tag_group) {
+              assetDataWithCreator.asset_tag_group = regenerated.asset_tag_group
+            }
             retries += 1
             continue
           }
@@ -127,11 +140,11 @@ class AssetService {
         processedFormResponses = processedResponses
       }
 
-      // Generate barcode for the asset
+      // Generate barcode for the asset (encode asset_id-based code, hide human-readable text)
       let barcodePath = null
       let barcodeNumber = null
       try {
-        // Generate random barcode number: [A-Z][0-9][0-9][asset_id][0-9][0-9]
+        // Legacy-compatible barcode text: ASSET-<zero-padded asset_id>
         barcodeNumber = generateAssetBarcodeNumber(asset.asset_id)
 
         // Define barcode directory and ensure it exists
@@ -143,7 +156,9 @@ class AssetService {
         const fullBarcodePath = path.join(barcodeDir, barcodeFilename)
 
         // Generate and save barcode as PNG using the random barcode number
-        await generateBarcodeFile(barcodeNumber, fullBarcodePath)
+        await generateBarcodeFile(barcodeNumber, fullBarcodePath, {
+          includeText: false, // do not print human-readable ID under bars
+        })
 
         // Store relative path in database
         barcodePath = `/barcodes/${barcodeFilename}`
@@ -521,15 +536,26 @@ class AssetService {
     transaction,
     sequenceOffset = 0,
   }) {
+    const parsedTagConfig = this._parseConfigObject(tagConfig)
+
+    const tagConfigEffective =
+      parsedTagConfig && typeof parsedTagConfig === 'object'
+        ? parsedTagConfig
+        : null
+
     // If form-based config is available and enabled, build tag from segments
-    if (tagConfig?.enabled && Array.isArray(tagConfig.segments)) {
+    if (
+      tagConfigEffective?.enabled &&
+      Array.isArray(tagConfigEffective.segments)
+    ) {
       const separator =
-        typeof tagConfig.separator === 'string' && tagConfig.separator.length
-          ? tagConfig.separator
+        typeof tagConfigEffective.separator === 'string' &&
+        tagConfigEffective.separator.length
+          ? tagConfigEffective.separator
           : '-'
 
       const parts = []
-      const segments = tagConfig.segments
+      const segments = tagConfigEffective.segments
 
       const getFieldValue = (fieldId) => {
         const key = String(fieldId)
@@ -553,7 +579,11 @@ class AssetService {
               `Missing value for asset tag field_id ${segment.field_id}`,
             )
           }
-          parts.push(this._valueToTagChunk(value, segment.max_length || 12))
+          const chunkLength =
+            Number(segment.max_length) && Number(segment.max_length) > 0
+              ? Number(segment.max_length)
+              : null // null => no truncation
+          parts.push(this._valueToTagChunk(value, chunkLength))
         } else if (segment.type === 'sequence') {
           const length = Number(segment.length) || 4
           const start = Number(segment.start) || 1
@@ -564,6 +594,7 @@ class AssetService {
             length,
             start + sequenceOffset,
             transaction,
+            'asset_tag',
           )
           const seqPart = String(nextSeq).padStart(length, '0')
           parts.push(seqPart)
@@ -612,12 +643,93 @@ class AssetService {
     return `${locationCode}-${categoryCode}-${seqPart}`
   }
 
+  async _generateAssetTagGroup({
+    assetData = {},
+    formId = null,
+    formResponses = {},
+    tagGroupConfig = null,
+    transaction,
+    sequenceOffset = 0,
+  }) {
+    const config = this._parseConfigObject(tagGroupConfig)
+    if (!config?.enabled) return assetData.asset_tag_group || null
+
+    const separator =
+      typeof config.separator === 'string' && config.separator.length
+        ? config.separator
+        : '-'
+
+    const parts = []
+
+    const getFieldValue = (fieldId) => {
+      const key = String(fieldId)
+      if (
+        formResponses &&
+        typeof formResponses === 'object' &&
+        Object.prototype.hasOwnProperty.call(formResponses, key)
+      ) {
+        return formResponses[key]
+      }
+      return undefined
+    }
+
+    // FIELD (first)
+    if (config.field_id) {
+      const value = getFieldValue(config.field_id)
+      if (value === undefined || value === null || value === '') {
+        throw new Error(
+          `Missing value for asset tag group field_id ${config.field_id}`,
+        )
+      }
+      const chunkLength =
+        Number(config.field_length) ||
+        Number(config.fieldLength) ||
+        Number(config.length) ||
+        12
+      parts.push(this._valueToTagChunk(value, chunkLength))
+    }
+
+    // ASSET CATEGORY CLASS tag (second)
+    if (config.asset_class_category_tag) {
+      parts.push(this._valueToTagChunk(config.asset_class_category_tag, 24))
+    }
+
+    // COUNTER (last)
+    if (config.sequence) {
+      const length = Number(config.sequence.length) || 4
+      const start = Number(config.sequence.start) || 1
+      const prefix = parts.join(separator)
+      const nextSeq = await this._computeConfigSequence(
+        prefix,
+        separator,
+        length,
+        start + sequenceOffset,
+        transaction,
+        'asset_tag_group',
+      )
+      const seqPart = String(nextSeq).padStart(length, '0')
+      parts.push(seqPart)
+    }
+
+    if (!parts.length) {
+      return assetData.asset_tag_group || null
+    }
+
+    return parts.join(separator)
+  }
+
   _slugCode(str, maxLen) {
     if (!str) return 'GEN'
     const cleaned = String(str)
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '')
-    const sliced = cleaned.slice(0, Math.max(3, maxLen || 8))
+
+    // If no maxLen is provided, keep the full cleaned string
+    if (!maxLen || maxLen <= 0) {
+      return cleaned || 'GEN'
+    }
+
+    const sliced = cleaned.slice(0, maxLen)
     return sliced || 'GEN'
   }
 
@@ -645,12 +757,36 @@ class AssetService {
   }
 
   async _getFormTagConfig(formId, transaction) {
-    if (!formId) return null
-    const form = await FormBuilder.findByPk(formId, { transaction })
-    return form?.asset_tag_config || null
+    const configs = await this._getFormTagConfigs(formId, transaction)
+    return configs.asset_tag_config || null
   }
 
-  _valueToTagChunk(value, maxLen = 12) {
+  async _getFormTagConfigs(formId, transaction) {
+    if (!formId) return {}
+    const form = await FormBuilder.findByPk(formId, { transaction })
+    if (!form) return {}
+    return {
+      asset_tag_config: this._parseConfigObject(form.asset_tag_config),
+      asset_tag_group_config: this._parseConfigObject(
+        form.asset_tag_group_config,
+      ),
+    }
+  }
+
+  _parseConfigObject(raw) {
+    if (raw === null || raw === undefined) return null
+    if (typeof raw === 'object') return raw
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return raw
+      }
+    }
+    return raw
+  }
+
+  _valueToTagChunk(value, maxLen = null) {
     if (value === null || value === undefined) return ''
     if (typeof value === 'object') {
       try {
@@ -663,7 +799,17 @@ class AssetService {
     return this._slugCode(String(value), maxLen)
   }
 
-  async _computeConfigSequence(prefix, separator, length, start, transaction) {
+  async _computeConfigSequence(
+    prefix,
+    separator,
+    length,
+    start,
+    transaction,
+    columnName = 'asset_tag',
+  ) {
+    const column =
+      columnName === 'asset_tag_group' ? 'asset_tag_group' : 'asset_tag'
+
     const safePrefix = prefix || ''
     const pattern = safePrefix
       ? `${safePrefix}${separator}%`
@@ -671,9 +817,9 @@ class AssetService {
 
     const [rows] = await Asset.sequelize.query(
       `
-        SELECT asset_tag
+        SELECT ${column}
         FROM assets
-        WHERE asset_tag LIKE :pattern
+        WHERE ${column} LIKE :pattern
         ORDER BY asset_id DESC
         LIMIT 200
       `,
@@ -683,7 +829,7 @@ class AssetService {
     const prefixWithSep = safePrefix ? `${safePrefix}${separator}` : ''
     const maxSeq = rows
       .map((r) => {
-        const tag = String(r.asset_tag || '')
+        const tag = String(r[column] || '')
         if (!tag.startsWith(prefixWithSep)) return null
         const remainder = tag.slice(prefixWithSep.length)
         const match = remainder.match(/^(\\d+)/)
