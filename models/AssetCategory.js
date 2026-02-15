@@ -9,11 +9,10 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // AssetCategory has many Assets
-      // AssetCategory.hasMany(models.Asset, {
-      //   foreignKey: 'category_id',
-      //   as: 'assets'
-      // });
+      AssetCategory.belongsTo(models.AssetCategoryClass, {
+        foreignKey: 'asset_class_id',
+        as: 'assetClass',
+      })
     }
   }
 
@@ -24,6 +23,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
+      },
+      asset_class_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
       },
       name: {
         type: DataTypes.STRING(100),

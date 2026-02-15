@@ -16,6 +16,8 @@ const maintenanceRoutes = require("./maintenance");
 const documentsRoutes = require("./documents");
 const notificationsRoutes = require("./notifications");
 const formBuilderRoutes = require("./formBuilder");
+const locationsRoutes = require("./locations");
+const assetCategoryClassesRoutes = require("./assetCategoryClasses");
 const { apiLimiter } = require("../middleware/securityMiddleware");
 
 // Mount route modules
@@ -37,5 +39,7 @@ router.use("/api/maintenance", apiLimiter, maintenanceRoutes);
 router.use("/api/documents", apiLimiter, documentsRoutes);
 router.use("/api/notifications", apiLimiter, notificationsRoutes);
 router.use("/api/forms", apiLimiter, formBuilderRoutes);
+router.use("/api/locations", apiLimiter, locationsRoutes);
+router.use("/api/asset-category-classes", apiLimiter, assetCategoryClassesRoutes);
 
 module.exports = router;

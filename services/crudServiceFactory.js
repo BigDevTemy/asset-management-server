@@ -11,6 +11,8 @@ const {
   AssetFormValue,
   FormFields,
   FormBuilder,
+  Location,
+  AssetCategoryClass,
 } = require('../models')
 
 /**
@@ -115,7 +117,14 @@ const createAssetCategoryCrudService = () => {
     defaultPageSize: 10,
     maxPageSize: 100,
     excludeFromSearch: ['created_at', 'updated_at'],
-    defaultIncludes: [],
+    defaultIncludes: [
+      {
+        model: AssetCategoryClass,
+        as: 'assetClass',
+        attributes: ['asset_class_id', 'name', 'slug'],
+        required: false,
+      },
+    ],
     excludeFromResponse: [],
   })
 }
@@ -172,6 +181,41 @@ const createOrganizationSettingsCrudService = () => {
   })
 }
 
+// Location CRUD Service Configuration
+const createLocationCrudService = () => {
+  return new CrudService(Location, {
+    searchFields: ['name', 'slug'],
+    defaultSort: 'created_at',
+    defaultOrder: 'DESC',
+    defaultPageSize: 10,
+    maxPageSize: 100,
+    excludeFromSearch: ['created_at', 'updated_at'],
+    defaultIncludes: [],
+    excludeFromResponse: [],
+  })
+}
+
+// Asset Category Class CRUD Service Configuration
+const createAssetCategoryClassCrudService = () => {
+  return new CrudService(AssetCategoryClass, {
+    searchFields: ['name', 'slug'],
+    defaultSort: 'created_at',
+    defaultOrder: 'DESC',
+    defaultPageSize: 10,
+    maxPageSize: 100,
+    excludeFromSearch: ['created_at', 'updated_at'],
+    defaultIncludes: [
+      {
+        model: AssetCategory,
+        as: 'categories',
+        attributes: ['category_id', 'name', 'asset_class_id'],
+        required: false,
+      },
+    ],
+    excludeFromResponse: [],
+  })
+}
+
 /**
  * Main factory function
  * @param {string} modelName - Name of the model
@@ -185,6 +229,8 @@ const createCrudService = (modelName) => {
     AssetCategory: createAssetCategoryCrudService,
     AssetTransaction: createAssetTransactionCrudService,
     OrganizationSettings: createOrganizationSettingsCrudService,
+    Location: createLocationCrudService,
+    AssetCategoryClass: createAssetCategoryClassCrudService,
   }
 
   const serviceFactory = services[modelName]
@@ -205,4 +251,6 @@ module.exports = {
   createAssetCategoryCrudService,
   createAssetTransactionCrudService,
   createOrganizationSettingsCrudService,
+  createLocationCrudService,
+  createAssetCategoryClassCrudService,
 }
