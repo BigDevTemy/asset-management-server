@@ -671,8 +671,39 @@ class AssetService {
     const config = this._parseConfigObject(tagGroupConfig)
     if (!config?.enabled) return assetData.asset_tag_group || null
 
-    const categoryId = assetData.category_id || assetData.categoryId || null
+    const classFieldId = config?.class_field_id || config?.classFieldId || null
+    const classHierarchyLevelName =
+      config?.class_hierarchy_level_name || config?.classHierarchyLevelName || null
+
+    // Prefer resolving class from explicit class_field_id, then fall back to category and segment lookup
+    let resolvedClassId = null
+    let resolvedCategoryId = null
+
+    if (classFieldId) {
+      const classFieldValue = this._getFieldResponseValue(
+        formResponses,
+        classFieldId,
+        classHierarchyLevelName,
+      )
+
+      if (classFieldValue === undefined || classFieldValue === null || classFieldValue === '') {
+        throw new Error(
+          `Missing value for class_field_id ${classFieldId} required for asset tag group generation`,
+        )
+      }
+
+      const { classId, categoryId: catId } = await this._resolveClassFromFieldValue(
+        classFieldValue,
+        transaction,
+      )
+      resolvedClassId = classId
+      resolvedCategoryId = catId
+    }
+
+    const categoryId =
+      assetData.category_id || assetData.categoryId || resolvedCategoryId || null
     const categoryClassId =
+      resolvedClassId ||
       (await this._getCategoryClassId(categoryId, transaction)) ||
       (await this._resolveClassIdFromResponses(
         formId,
@@ -680,6 +711,22 @@ class AssetService {
         config.segments,
         transaction,
       ))
+
+    // If both class id and category id are present, enforce that the category belongs to that class
+    if (categoryClassId && resolvedCategoryId) {
+      const categoryClassFromCategory = await this._getCategoryClassId(
+        resolvedCategoryId,
+        transaction,
+      )
+      if (
+        categoryClassFromCategory &&
+        Number(categoryClassFromCategory) !== Number(categoryClassId)
+      ) {
+        throw new Error(
+          'Selected category does not belong to the selected asset class for asset_tag_group',
+        )
+      }
+    }
 
     const separator =
       typeof config.separator === 'string' && config.separator.length
@@ -723,11 +770,15 @@ class AssetService {
           parts.push(chunk)
 
           // Capture class token for class-scoped sequencing if this segment is the Asset Class level
-          if (
+          const isAssetClassLevel =
             segment.hierarchy_level_name &&
             typeof segment.hierarchy_level_name === 'string' &&
             segment.hierarchy_level_name.toLowerCase() === 'asset class'
-          ) {
+
+          const isConfiguredClassField =
+            classFieldId && String(segment.field_id) === String(classFieldId)
+
+          if (isAssetClassLevel || isConfiguredClassField) {
             classToken = chunk
           }
         } else if (segment.type === 'sequence') {
@@ -913,7 +964,7 @@ class AssetService {
         const tag = String(r[column] || '')
         if (!tag.startsWith(prefixWithSep)) return null
         const remainder = tag.slice(prefixWithSep.length)
-        const match = remainder.match(/^(\\d+)/)
+        const match = remainder.match(/^(\d+)/)
         return match ? parseInt(match[1], 10) : null
       })
       .filter((n) => Number.isFinite(n))
@@ -941,22 +992,36 @@ class AssetService {
     // When we captured the class token, count across all tags containing that class
     // token (middle segment), regardless of location prefix.
     if (classToken) {
-      const pattern = `%${separator}${classToken}${separator}%`
+      const altSeparator = separator === '-' ? '/' : '-'
+      const patternPrimary = `%${separator}${classToken}${separator}%`
+      const patterns = [patternPrimary]
+      if (altSeparator !== separator) {
+        patterns.push(`%${altSeparator}${classToken}${altSeparator}%`)
+      }
+
       const [rows] = await Asset.sequelize.query(
         `
           SELECT ${column}
           FROM assets
-          WHERE ${column} LIKE :pattern
+          WHERE ${patterns
+            .map((_, idx) => `${column} LIKE :pattern${idx}`)
+            .join(' OR ')}
           ORDER BY asset_id DESC
           LIMIT 500
         `,
-        { replacements: { pattern }, transaction },
+        {
+          replacements: patterns.reduce(
+            (acc, p, idx) => ({ ...acc, [`pattern${idx}`]: p }),
+            {},
+          ),
+          transaction,
+        },
       )
 
       const maxSeq = rows
         .map((r) => {
           const tag = String(r[column] || '')
-          const match = tag.match(/(\\d+)$/)
+          const match = tag.match(/(\d+)$/)
           return match ? parseInt(match[1], 10) : null
         })
         .filter((n) => Number.isFinite(n))
@@ -1026,6 +1091,91 @@ class AssetService {
       })
       return null
     }
+  }
+
+  /**
+   * Resolve asset_class_id (and optionally category_id) from a class_field value
+   * supplied in the form payload. Accepts category ids, class ids, slugs, or names.
+   */
+  async _resolveClassFromFieldValue(rawValue, transaction) {
+    if (rawValue === undefined || rawValue === null || rawValue === '') {
+      return { classId: null, categoryId: null }
+    }
+
+    const numeric = Number(rawValue)
+    if (Number.isFinite(numeric)) {
+      // Direct class id
+      const [classRows] = await Asset.sequelize.query(
+        `
+          SELECT asset_class_id
+          FROM asset_category_classes
+          WHERE asset_class_id = :id
+          LIMIT 1
+        `,
+        { replacements: { id: numeric }, transaction },
+      )
+      if (classRows?.length) {
+        return { classId: numeric, categoryId: null }
+      }
+
+      // Category id -> class id
+      const [catRows] = await Asset.sequelize.query(
+        `
+          SELECT category_id, asset_class_id
+          FROM asset_categories
+          WHERE category_id = :cid
+          LIMIT 1
+        `,
+        { replacements: { cid: numeric }, transaction },
+      )
+      if (catRows?.length) {
+        const classIdRaw = catRows[0].asset_class_id
+        const parsed = Number(classIdRaw)
+        return {
+          classId: Number.isFinite(parsed) ? parsed : classIdRaw || null,
+          categoryId: catRows[0].category_id || numeric,
+        }
+      }
+    }
+
+    const val = String(rawValue)
+
+    // Try match by class slug or name
+    const [classRowsByText] = await Asset.sequelize.query(
+      `
+        SELECT asset_class_id
+        FROM asset_category_classes
+        WHERE LOWER(slug) = LOWER(:val) OR LOWER(name) = LOWER(:val)
+        LIMIT 1
+      `,
+      { replacements: { val }, transaction },
+    )
+    if (classRowsByText?.length) {
+      const classIdRaw = classRowsByText[0].asset_class_id
+      const parsed = Number(classIdRaw)
+      return { classId: Number.isFinite(parsed) ? parsed : classIdRaw || null, categoryId: null }
+    }
+
+    // Try category name as a fallback
+    const [catRowsByName] = await Asset.sequelize.query(
+      `
+        SELECT category_id, asset_class_id
+        FROM asset_categories
+        WHERE LOWER(name) = LOWER(:val)
+        LIMIT 1
+      `,
+      { replacements: { val }, transaction },
+    )
+    if (catRowsByName?.length) {
+      const classIdRaw = catRowsByName[0].asset_class_id
+      const parsed = Number(classIdRaw)
+      return {
+        classId: Number.isFinite(parsed) ? parsed : classIdRaw || null,
+        categoryId: catRowsByName[0].category_id || null,
+      }
+    }
+
+    return { classId: null, categoryId: null }
   }
 
   /**
