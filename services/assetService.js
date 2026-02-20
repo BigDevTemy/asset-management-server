@@ -140,12 +140,15 @@ class AssetService {
         processedFormResponses = processedResponses
       }
 
-      // Generate barcode for the asset (encode asset_id-based code, hide human-readable text)
+      // Generate barcode for the asset using the final asset_tag (human-readable)
       let barcodePath = null
       let barcodeNumber = null
       try {
-        // Legacy-compatible barcode text: ASSET-<zero-padded asset_id>
-        barcodeNumber = generateAssetBarcodeNumber(asset.asset_id)
+        // Prefer the generated asset_tag; fall back to legacy asset_id-based code
+        barcodeNumber =
+          asset.asset_tag ||
+          assetDataWithCreator.asset_tag ||
+          generateAssetBarcodeNumber(asset.asset_id)
 
         // Define barcode directory and ensure it exists
         const barcodeDir = path.join(__dirname, '../public/barcodes')
@@ -155,9 +158,9 @@ class AssetService {
         const barcodeFilename = `barcode_${asset.asset_id}.png`
         const fullBarcodePath = path.join(barcodeDir, barcodeFilename)
 
-        // Generate and save barcode as PNG using the random barcode number
+        // Generate and save barcode as PNG (human-readable text included)
         await generateBarcodeFile(barcodeNumber, fullBarcodePath, {
-          includeText: false, // do not print human-readable ID under bars
+          includeText: true,
         })
 
         // Store relative path in database
@@ -267,6 +270,7 @@ class AssetService {
       value_key: valueKey,
       parent_key: parentKey,
       parent_id: parentId,
+      link_id: linkId,
       search,
       limit = 50,
       order = 'ASC',
@@ -331,15 +335,34 @@ class AssetService {
       }
     }
 
+    if (linkId) {
+      if (!IDENTIFIER_REGEX.test(linkId)) {
+        const err = new Error('Invalid link_id: only letters, numbers, and underscore are allowed')
+        err.statusCode = 400
+        throw err
+      }
+      if (!tableDefinition[linkId]) {
+        const err = new Error(`Link column not found on ${table}: ${linkId}`)
+        err.statusCode = 400
+        throw err
+      }
+    }
+
     const safeTable = qg.quoteTable(table)
     const safeLabel = qg.quoteIdentifier(labelKey)
     const safeValue = qg.quoteIdentifier(valueKey)
     const safeParent = parentKey ? qg.quoteIdentifier(parentKey) : null
+    const safeLink = linkId ? qg.quoteIdentifier(linkId) : null
 
     const cappedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)
     const sortDirection = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
 
-    let sql = `SELECT ${safeValue} AS value, ${safeLabel} AS label FROM ${safeTable}`
+    const selectCols = [`${safeValue} AS value`, `${safeLabel} AS label`]
+    if (safeLink) {
+      selectCols.push(`${safeLink} AS link_id`)
+    }
+
+    let sql = `SELECT ${selectCols.join(', ')} FROM ${safeTable}`
     const replacements = {}
     const whereClauses = []
 
@@ -557,23 +580,17 @@ class AssetService {
       const parts = []
       const segments = tagConfigEffective.segments
 
-      const getFieldValue = (fieldId) => {
-        const key = String(fieldId)
-        if (
-          formResponses &&
-          typeof formResponses === 'object' &&
-          Object.prototype.hasOwnProperty.call(formResponses, key)
-        ) {
-          return formResponses[key]
-        }
-        return undefined
-      }
+      const getFieldValue = (fieldId, hierarchyLevelName = null) =>
+        this._getFieldResponseValue(formResponses, fieldId, hierarchyLevelName)
 
       for (const segment of segments) {
         if (!segment || !segment.type) continue
 
         if (segment.type === 'field') {
-          const value = getFieldValue(segment.field_id)
+          const value = getFieldValue(
+            segment.field_id,
+            segment.hierarchy_level_name,
+          )
           if (value === undefined || value === null || value === '') {
             throw new Error(
               `Missing value for asset tag field_id ${segment.field_id}`,
@@ -654,61 +671,125 @@ class AssetService {
     const config = this._parseConfigObject(tagGroupConfig)
     if (!config?.enabled) return assetData.asset_tag_group || null
 
+    const categoryId = assetData.category_id || assetData.categoryId || null
+    const categoryClassId =
+      (await this._getCategoryClassId(categoryId, transaction)) ||
+      (await this._resolveClassIdFromResponses(
+        formId,
+        formResponses,
+        config.segments,
+        transaction,
+      ))
+
     const separator =
       typeof config.separator === 'string' && config.separator.length
         ? config.separator
         : '-'
 
     const parts = []
+    const segments = Array.isArray(config.segments) ? config.segments : []
+    let classToken = null
 
-    const getFieldValue = (fieldId) => {
-      const key = String(fieldId)
-      if (
-        formResponses &&
-        typeof formResponses === 'object' &&
-        Object.prototype.hasOwnProperty.call(formResponses, key)
-      ) {
-        return formResponses[key]
+    const getFieldValue = (fieldId, hierarchyLevelName = null) =>
+      this._getFieldResponseValue(formResponses, fieldId, hierarchyLevelName)
+
+    if (segments.length) {
+      for (const segment of segments) {
+        if (!segment || !segment.type) continue
+
+        if (segment.type === 'field') {
+          const value = getFieldValue(
+            segment.field_id,
+            segment.hierarchy_level_name,
+          )
+          const hasValue = value !== undefined && value !== null && value !== ''
+          const hasStatic =
+            segment.static_value !== undefined &&
+            segment.static_value !== null &&
+            String(segment.static_value).length > 0
+
+          if (!hasValue && !hasStatic) {
+            throw new Error(
+              `Missing value for asset tag group field_id ${segment.field_id}`,
+            )
+          }
+          const chunkLength =
+            Number(segment.max_length) && Number(segment.max_length) > 0
+              ? Number(segment.max_length)
+              : null
+          // Match asset_tag behavior: prefer actual field value; fall back to static when value absent
+          const valToUse = hasValue ? value : segment.static_value
+          const chunk = this._valueToTagChunk(valToUse, chunkLength)
+          parts.push(chunk)
+
+          // Capture class token for class-scoped sequencing if this segment is the Asset Class level
+          if (
+            segment.hierarchy_level_name &&
+            typeof segment.hierarchy_level_name === 'string' &&
+            segment.hierarchy_level_name.toLowerCase() === 'asset class'
+          ) {
+            classToken = chunk
+          }
+        } else if (segment.type === 'sequence') {
+          const length = Number(segment.length) || 4
+          const start = Number(segment.start) || 1
+          const prefix = parts.join(separator)
+          const nextSeq = await this._computeGroupSequence(
+            prefix,
+            separator,
+            length,
+            start + sequenceOffset,
+            transaction,
+            categoryClassId,
+            classToken,
+          )
+          const seqPart = String(nextSeq).padStart(length, '0')
+          parts.push(seqPart)
+        } else {
+          logger.warn('Unknown asset_tag_group segment type, skipping', {
+            segment,
+          })
+        }
       }
-      return undefined
-    }
+    } else {
+      // Fallback to legacy behavior if segments are absent
+      const getFieldValueSimple = (fieldId) =>
+        this._getFieldResponseValue(formResponses, fieldId, null)
 
-    // FIELD (first)
-    if (config.field_id) {
-      const value = getFieldValue(config.field_id)
-      if (value === undefined || value === null || value === '') {
-        throw new Error(
-          `Missing value for asset tag group field_id ${config.field_id}`,
+      if (config.field_id) {
+        const value = getFieldValueSimple(config.field_id)
+        if (value === undefined || value === null || value === '') {
+          throw new Error(
+            `Missing value for asset tag group field_id ${config.field_id}`,
+          )
+        }
+        const chunkLength =
+          Number(config.field_length) ||
+          Number(config.fieldLength) ||
+          Number(config.length) ||
+          12
+        parts.push(this._valueToTagChunk(value, chunkLength))
+      }
+
+      if (config.asset_class_category_tag) {
+        parts.push(this._valueToTagChunk(config.asset_class_category_tag, 24))
+      }
+
+      if (config.sequence) {
+        const length = Number(config.sequence.length) || 4
+        const start = Number(config.sequence.start) || 1
+        const prefix = parts.join(separator)
+        const nextSeq = await this._computeGroupSequence(
+          prefix,
+          separator,
+          length,
+          start + sequenceOffset,
+          transaction,
+          categoryClassId,
         )
+        const seqPart = String(nextSeq).padStart(length, '0')
+        parts.push(seqPart)
       }
-      const chunkLength =
-        Number(config.field_length) ||
-        Number(config.fieldLength) ||
-        Number(config.length) ||
-        12
-      parts.push(this._valueToTagChunk(value, chunkLength))
-    }
-
-    // ASSET CATEGORY CLASS tag (second)
-    if (config.asset_class_category_tag) {
-      parts.push(this._valueToTagChunk(config.asset_class_category_tag, 24))
-    }
-
-    // COUNTER (last)
-    if (config.sequence) {
-      const length = Number(config.sequence.length) || 4
-      const start = Number(config.sequence.start) || 1
-      const prefix = parts.join(separator)
-      const nextSeq = await this._computeConfigSequence(
-        prefix,
-        separator,
-        length,
-        start + sequenceOffset,
-        transaction,
-        'asset_tag_group',
-      )
-      const seqPart = String(nextSeq).padStart(length, '0')
-      parts.push(seqPart)
     }
 
     if (!parts.length) {
@@ -839,6 +920,226 @@ class AssetService {
       .reduce((a, b) => Math.max(a, b), start - 1)
 
     return maxSeq + 1
+  }
+
+  /**
+   * Compute sequence for asset_tag_group with optional per-class scoping.
+   * When categoryClassId is provided, sequence is computed only among assets
+   * that belong to that asset_category_class (via asset_categories.asset_class_id).
+   */
+  async _computeGroupSequence(
+    prefix,
+    separator,
+    length,
+    start,
+    transaction,
+    categoryClassId = null,
+    classToken = null,
+  ) {
+    const column = 'asset_tag_group'
+
+    // When class is known and we captured the class token, count across all tags containing that class
+    // token (middle segment), regardless of location prefix.
+    if (categoryClassId && classToken) {
+      const pattern = `%${separator}${classToken}${separator}%`
+      const [rows] = await Asset.sequelize.query(
+        `
+          SELECT ${column}
+          FROM assets
+          WHERE ${column} LIKE :pattern
+          ORDER BY asset_id DESC
+          LIMIT 500
+        `,
+        { replacements: { pattern }, transaction },
+      )
+
+      const maxSeq = rows
+        .map((r) => {
+          const tag = String(r[column] || '')
+          const match = tag.match(/(\\d+)$/)
+          return match ? parseInt(match[1], 10) : null
+        })
+        .filter((n) => Number.isFinite(n))
+        .reduce((a, b) => Math.max(a, b), start - 1)
+
+      return maxSeq + 1
+    }
+
+    // Fallback: if class unknown, use prefix-scoped counter
+    if (!categoryClassId) {
+      return this._computeConfigSequence(
+        prefix,
+        separator,
+        length,
+        start,
+        transaction,
+        column,
+      )
+    }
+
+    const safePrefix = prefix || ''
+    const pattern = safePrefix ? `${safePrefix}${separator}%` : `%`
+    const prefixWithSep = safePrefix ? `${safePrefix}${separator}` : ''
+
+    const [rows] = await Asset.sequelize.query(
+      `
+        SELECT a.${column}
+        FROM assets a
+        LEFT JOIN asset_categories c ON a.category_id = c.category_id
+        WHERE ${column} LIKE :pattern
+          AND c.asset_class_id = :classId
+        ORDER BY a.asset_id DESC
+        LIMIT 200
+      `,
+      { replacements: { pattern, classId: categoryClassId }, transaction },
+    )
+
+    const maxSeq = rows
+      .map((r) => {
+        const tag = String(r[column] || '')
+        if (!tag.startsWith(prefixWithSep)) return null
+        const remainder = tag.slice(prefixWithSep.length)
+        const match = remainder.match(/^(\d+)/)
+        return match ? parseInt(match[1], 10) : null
+      })
+      .filter((n) => Number.isFinite(n))
+      .reduce((a, b) => Math.max(a, b), start - 1)
+
+    return maxSeq + 1
+  }
+
+  async _getCategoryClassId(categoryId, transaction) {
+    if (!categoryId) return null
+    try {
+      const [rows] = await Asset.sequelize.query(
+        'SELECT asset_class_id FROM asset_categories WHERE category_id = :cid LIMIT 1',
+        { replacements: { cid: categoryId }, transaction },
+      )
+      const raw = rows?.[0]?.asset_class_id
+      const parsed = Number(raw)
+      return Number.isFinite(parsed) ? parsed : raw || null
+    } catch (err) {
+      logger.warn('Failed to resolve asset_class_id for category', {
+        categoryId,
+        error: err.message,
+      })
+      return null
+    }
+  }
+
+  /**
+   * Resolve a value from formResponses for a given field, with optional hierarchy level.
+   */
+  _getFieldResponseValue(formResponses, fieldId, hierarchyLevelName = null) {
+    const key = String(fieldId)
+    if (
+      !formResponses ||
+      typeof formResponses !== 'object' ||
+      !Object.prototype.hasOwnProperty.call(formResponses, key)
+    ) {
+      return undefined
+    }
+
+    const raw = formResponses[key]
+
+    // Handle hierarchical_select structure: { selections, resolved: [{ level, id, label }] }
+    if (
+      hierarchyLevelName &&
+      raw &&
+      typeof raw === 'object' &&
+      Array.isArray(raw.resolved)
+    ) {
+      const match = raw.resolved.find(
+        (r) =>
+          r &&
+          typeof r.level === 'string' &&
+          r.level.toLowerCase() === hierarchyLevelName.toLowerCase(),
+      )
+      if (match) {
+        return match.id ?? match.label ?? match.value ?? undefined
+      }
+    }
+
+    // If no resolved array yet (e.g., during create before persistence), try direct selection map
+    if (hierarchyLevelName && raw && typeof raw === 'object') {
+      const selections =
+        typeof raw.selections === 'object' && raw.selections !== null
+          ? raw.selections
+          : raw
+
+      const tryKeys = [
+        hierarchyLevelName,
+        hierarchyLevelName.toLowerCase(),
+        hierarchyLevelName.replace(/\s+/g, '_'),
+        hierarchyLevelName.toLowerCase().replace(/\s+/g, '_'),
+      ]
+
+      for (const k of tryKeys) {
+        if (
+          Object.prototype.hasOwnProperty.call(selections, k) &&
+          selections[k] !== undefined
+        ) {
+          return selections[k]
+        }
+      }
+    }
+
+    return raw
+  }
+
+  /**
+   * Resolve asset_class_id from form responses when category_id is missing.
+   * Uses hierarchy segment with hierarchy_level_name 'Asset Class' (case-insensitive).
+   */
+  async _resolveClassIdFromResponses(
+    formId,
+    formResponses,
+    segments = [],
+    transaction,
+  ) {
+    if (!formResponses || typeof formResponses !== 'object') return null
+
+    const classSegment = (segments || []).find(
+      (s) =>
+        s?.type === 'field' &&
+        typeof s.hierarchy_level_name === 'string' &&
+        s.hierarchy_level_name.toLowerCase() === 'asset class',
+    )
+
+    if (!classSegment) return null
+
+    const rawVal = this._getFieldResponseValue(
+      formResponses,
+      classSegment.field_id,
+      classSegment.hierarchy_level_name,
+    )
+    if (rawVal === undefined || rawVal === null || rawVal === '') return null
+
+    // If numeric, treat as ID
+    const numeric = Number(rawVal)
+    if (Number.isFinite(numeric)) return numeric
+
+    // Otherwise try to resolve by slug or name (case-insensitive)
+    try {
+      const [rows] = await Asset.sequelize.query(
+        `
+          SELECT asset_class_id
+          FROM asset_category_classes
+          WHERE LOWER(slug) = LOWER(:val) OR LOWER(name) = LOWER(:val)
+          LIMIT 1
+        `,
+        { replacements: { val: String(rawVal) }, transaction },
+      )
+      const raw = rows?.[0]?.asset_class_id
+      const parsed = Number(raw)
+      return Number.isFinite(parsed) ? parsed : raw || null
+    } catch (err) {
+      logger.warn('Failed to resolve asset_class_id from form responses', {
+        value: rawVal,
+        error: err.message,
+      })
+      return null
+    }
   }
 
   async _computeNextSeq(categoryId, categoryCode, transaction) {

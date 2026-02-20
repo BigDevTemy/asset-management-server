@@ -320,7 +320,10 @@ class FormBuilderService {
 
   _normalizeFields(formFields, formId, options = {}) {
     return formFields.map((field, index) => {
-      const hierarchyLevels = this._parseJsonField(field.hierarchy_levels)
+      const hierarchyLevels = this._normalizeHierarchyLevels(
+        field.hierarchy_levels,
+        field.type,
+      )
 
       const normalized = {
         ...field,
@@ -332,7 +335,7 @@ class FormBuilderService {
           field.options_source
             ? field.options_source
             : null,
-        hierarchy_levels: Array.isArray(hierarchyLevels) ? hierarchyLevels : null,
+        hierarchy_levels: hierarchyLevels,
         allow_multiple:
           typeof field.allow_multiple === 'boolean'
             ? field.allow_multiple
@@ -348,6 +351,48 @@ class FormBuilderService {
 
       return normalized
     })
+  }
+
+  /**
+   * Normalize hierarchy_levels for hierarchical_select fields.
+   * Ensures an array of level objects with expected keys, including link_id.
+   * For non-hierarchical fields, returns null.
+   */
+  _normalizeHierarchyLevels(rawLevels, fieldType) {
+    if (fieldType !== 'hierarchical_select') return null
+
+    const parsed = this._parseJsonField(rawLevels)
+    if (!Array.isArray(parsed)) return null
+
+    const cleaned = parsed
+      .map((level) => {
+        if (!level || typeof level !== 'object') return null
+
+        const {
+          name = null,
+          table = null,
+          label_key = null,
+          value_key = null,
+          parent_key = null,
+          link_id = null,
+          placeholder = null,
+          auto_refresh,
+        } = level
+
+        return {
+          name,
+          table,
+          label_key,
+          value_key,
+          parent_key,
+          link_id,
+          placeholder,
+          auto_refresh: typeof auto_refresh === 'boolean' ? auto_refresh : false,
+        }
+      })
+      .filter(Boolean)
+
+    return cleaned.length ? cleaned : null
   }
 
   _parseJsonField(rawValue) {
