@@ -938,9 +938,9 @@ class AssetService {
   ) {
     const column = 'asset_tag_group'
 
-    // When class is known and we captured the class token, count across all tags containing that class
+    // When we captured the class token, count across all tags containing that class
     // token (middle segment), regardless of location prefix.
-    if (categoryClassId && classToken) {
+    if (classToken) {
       const pattern = `%${separator}${classToken}${separator}%`
       const [rows] = await Asset.sequelize.query(
         `
@@ -965,47 +965,48 @@ class AssetService {
       return maxSeq + 1
     }
 
-    // Fallback: if class unknown, use prefix-scoped counter
-    if (!categoryClassId) {
-      return this._computeConfigSequence(
-        prefix,
-        separator,
-        length,
-        start,
-        transaction,
-        column,
+    // If class token missing but class id exists, use class-scoped prefix matching
+    if (categoryClassId) {
+      const safePrefix = prefix || ''
+      const pattern = safePrefix ? `${safePrefix}${separator}%` : `%`
+      const prefixWithSep = safePrefix ? `${safePrefix}${separator}` : ''
+
+      const [rows] = await Asset.sequelize.query(
+        `
+          SELECT a.${column}
+          FROM assets a
+          LEFT JOIN asset_categories c ON a.category_id = c.category_id
+          WHERE ${column} LIKE :pattern
+            AND c.asset_class_id = :classId
+          ORDER BY a.asset_id DESC
+          LIMIT 200
+        `,
+        { replacements: { pattern, classId: categoryClassId }, transaction },
       )
+
+      const maxSeq = rows
+        .map((r) => {
+          const tag = String(r[column] || '')
+          if (!tag.startsWith(prefixWithSep)) return null
+          const remainder = tag.slice(prefixWithSep.length)
+          const match = remainder.match(/^(\\d+)/)
+          return match ? parseInt(match[1], 10) : null
+        })
+        .filter((n) => Number.isFinite(n))
+        .reduce((a, b) => Math.max(a, b), start - 1)
+
+      return maxSeq + 1
     }
 
-    const safePrefix = prefix || ''
-    const pattern = safePrefix ? `${safePrefix}${separator}%` : `%`
-    const prefixWithSep = safePrefix ? `${safePrefix}${separator}` : ''
-
-    const [rows] = await Asset.sequelize.query(
-      `
-        SELECT a.${column}
-        FROM assets a
-        LEFT JOIN asset_categories c ON a.category_id = c.category_id
-        WHERE ${column} LIKE :pattern
-          AND c.asset_class_id = :classId
-        ORDER BY a.asset_id DESC
-        LIMIT 200
-      `,
-      { replacements: { pattern, classId: categoryClassId }, transaction },
+    // Fallback: prefix-scoped counter
+    return this._computeConfigSequence(
+      prefix,
+      separator,
+      length,
+      start,
+      transaction,
+      column,
     )
-
-    const maxSeq = rows
-      .map((r) => {
-        const tag = String(r[column] || '')
-        if (!tag.startsWith(prefixWithSep)) return null
-        const remainder = tag.slice(prefixWithSep.length)
-        const match = remainder.match(/^(\d+)/)
-        return match ? parseInt(match[1], 10) : null
-      })
-      .filter((n) => Number.isFinite(n))
-      .reduce((a, b) => Math.max(a, b), start - 1)
-
-    return maxSeq + 1
   }
 
   async _getCategoryClassId(categoryId, transaction) {
