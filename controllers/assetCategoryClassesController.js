@@ -1,44 +1,106 @@
-const { createAssetCategoryClassCrudService } = require('../services/crudServiceFactory')
+const { Op } = require('sequelize')
+const {
+  createAssetCategoryClassCrudService,
+} = require('../services/crudServiceFactory')
+const { AssetCategory } = require('../models')
 const logger = require('../utils/logger')
 
 const assetClassCrudService = createAssetCategoryClassCrudService()
 
 // Assign categories to a class (replace allotted_categories)
 const assignCategories = async (req, res) => {
+  let transaction
   try {
     const { id } = req.params
     const { category_ids } = req.body || {}
 
-    if (!Array.isArray(category_ids) || category_ids.length === 0) {
+    if (!Array.isArray(category_ids)) {
       return res.status(400).json({
         success: false,
         message: 'category_ids array is required',
       })
     }
 
-    const record = await assetClassCrudService.update(id, {
-      allotted_categories: category_ids,
-    })
+    // Normalize incoming ids to integers and drop invalids/duplicates
+    const normalizedIds = Array.from(
+      new Set(
+        category_ids
+          .map((cid) => Number(cid))
+          .filter((cid) => Number.isInteger(cid) && cid > 0),
+      ),
+    )
+
+    transaction = await AssetCategory.sequelize.transaction()
+
+    // Update the class record and its allotted list inside the same transaction
+    const record = await assetClassCrudService.update(
+      id,
+      { allotted_categories: normalizedIds },
+      { transaction },
+    )
 
     if (!record) {
+      await transaction.rollback()
       return res.status(404).json({
         success: false,
         message: 'Asset category class not found',
       })
     }
 
+    // 1) Attach selected categories to this class
+    if (normalizedIds.length) {
+      await AssetCategory.update(
+        { asset_class_id: id },
+        {
+          where: { category_id: { [Op.in]: normalizedIds } },
+          transaction,
+        },
+      )
+    }
+
+    // 2) Detach any categories previously linked to this class but not in the new list
+    await AssetCategory.update(
+      { asset_class_id: null },
+      {
+        where: {
+          asset_class_id: id,
+          ...(normalizedIds.length
+            ? { category_id: { [Op.notIn]: normalizedIds } }
+            : {}),
+        },
+        transaction,
+      },
+    )
+
+    await transaction.commit()
+
+    // Fetch fresh state (includes categories association)
+    const updatedRecord = await assetClassCrudService.getById(id)
+
     logger.logBusiness('asset_category_class_assigned_categories', {
       userId: req.user?.user_id,
       assetClassId: id,
-      categoryIds: category_ids,
+      categoryIds: normalizedIds,
     })
 
     res.status(200).json({
       success: true,
       message: 'Categories assigned to asset category class',
-      data: record,
+      data: updatedRecord,
     })
   } catch (error) {
+    // Roll back transaction if it exists
+    if (typeof transaction?.rollback === 'function') {
+      try {
+        await transaction.rollback()
+      } catch (rollbackErr) {
+        logger.logError(rollbackErr, {
+          action: 'rollback_assign_categories_to_asset_category_class',
+          assetClassId: req.params.id,
+        })
+      }
+    }
+
     logger.logError(error, {
       action: 'assign_categories_to_asset_category_class',
       userId: req.user?.user_id,

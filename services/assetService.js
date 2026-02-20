@@ -992,19 +992,17 @@ class AssetService {
     // When we captured the class token, count across all tags containing that class
     // token (middle segment), regardless of location prefix.
     if (classToken) {
-      const altSeparator = separator === '-' ? '/' : '-'
-      const patternPrimary = `%${separator}${classToken}${separator}%`
+      // Build LIKE pattern using the configured separator (supports backslash)
+      const sepForLike = String(separator || '-').replace(/([%_\\])/g, '\\$1')
+      const patternPrimary = `%${sepForLike}${classToken}${sepForLike}%`
       const patterns = [patternPrimary]
-      if (altSeparator !== separator) {
-        patterns.push(`%${altSeparator}${classToken}${altSeparator}%`)
-      }
 
       const [rows] = await Asset.sequelize.query(
         `
           SELECT ${column}
           FROM assets
           WHERE ${patterns
-            .map((_, idx) => `${column} LIKE :pattern${idx}`)
+            .map((_, idx) => `${column} LIKE :pattern${idx} ESCAPE '\\\\'`)
             .join(' OR ')}
           ORDER BY asset_id DESC
           LIMIT 500
@@ -1033,7 +1031,9 @@ class AssetService {
     // If class token missing but class id exists, use class-scoped prefix matching
     if (categoryClassId) {
       const safePrefix = prefix || ''
-      const pattern = safePrefix ? `${safePrefix}${separator}%` : `%`
+      const sepForLike = String(separator || '-').replace(/([%_\\])/g, '\\$1')
+      const prefixForPattern = safePrefix ? `${safePrefix}${sepForLike}` : ''
+      const pattern = safePrefix ? `${prefixForPattern}%` : `%`
       const prefixWithSep = safePrefix ? `${safePrefix}${separator}` : ''
 
       const [rows] = await Asset.sequelize.query(
@@ -1041,7 +1041,7 @@ class AssetService {
           SELECT a.${column}
           FROM assets a
           LEFT JOIN asset_categories c ON a.category_id = c.category_id
-          WHERE ${column} LIKE :pattern
+          WHERE ${column} LIKE :pattern ESCAPE '\\\\'
             AND c.asset_class_id = :classId
           ORDER BY a.asset_id DESC
           LIMIT 200

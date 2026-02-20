@@ -18,6 +18,9 @@ const notificationsRoutes = require("./notifications");
 const formBuilderRoutes = require("./formBuilder");
 const locationsRoutes = require("./locations");
 const assetCategoryClassesRoutes = require("./assetCategoryClasses");
+const buildingsRoutes = require("./buildings");
+const floorsRoutes = require("./floors");
+const roomsRoutes = require("./rooms");
 const { apiLimiter } = require("../middleware/securityMiddleware");
 
 // Mount route modules
@@ -41,5 +44,8 @@ router.use("/api/notifications", apiLimiter, notificationsRoutes);
 router.use("/api/forms", apiLimiter, formBuilderRoutes);
 router.use("/api/locations", apiLimiter, locationsRoutes);
 router.use("/api/asset-category-classes", apiLimiter, assetCategoryClassesRoutes);
+router.use("/api/buildings", apiLimiter, buildingsRoutes);
+router.use("/api/floors", apiLimiter, floorsRoutes);
+router.use("/api/rooms", apiLimiter, roomsRoutes);
 
 module.exports = router;

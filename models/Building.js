@@ -2,34 +2,44 @@
 const { Model } = require('sequelize')
 
 module.exports = (sequelize, DataTypes) => {
-  class Location extends Model {
+  class Building extends Model {
     static associate(models) {
-      Location.hasMany(models.Building, {
+      Building.belongsTo(models.Location, {
         foreignKey: 'location_id',
-        as: 'buildings',
+        as: 'location',
         onDelete: 'SET NULL',
+        onUpdate: 'CASCADE',
+      })
+
+      Building.hasMany(models.Floor, {
+        foreignKey: 'building_id',
+        as: 'floors',
+        onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
       })
     }
   }
 
-  Location.init(
+  Building.init(
     {
-      location_id: {
+      building_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
+      },
+      location_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
       },
       name: {
         type: DataTypes.STRING(150),
         allowNull: false,
         unique: true,
       },
-      slug: {
-        type: DataTypes.STRING(150),
-        allowNull: false,
-        unique: true,
+      address: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
       },
       created_at: {
         type: DataTypes.DATE,
@@ -44,8 +54,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: 'Location',
-      tableName: 'locations',
+      modelName: 'Building',
+      tableName: 'buildings',
       timestamps: true,
       createdAt: 'created_at',
       updatedAt: 'updated_at',
@@ -53,5 +63,5 @@ module.exports = (sequelize, DataTypes) => {
     },
   )
 
-  return Location
+  return Building
 }

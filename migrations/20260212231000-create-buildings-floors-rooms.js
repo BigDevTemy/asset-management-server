@@ -13,6 +13,16 @@ module.exports = {
         autoIncrement: true,
         primaryKey: true,
       },
+      location_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'locations',
+          key: 'location_id',
+        },
+        onDelete: 'SET NULL',
+        onUpdate: 'CASCADE',
+      },
       name: {
         type: DataTypes.STRING(150),
         allowNull: false,
@@ -33,6 +43,7 @@ module.exports = {
         defaultValue: Sequelize.fn('NOW'),
       },
     })
+    await queryInterface.addIndex('buildings', ['location_id'])
 
     // Floors (child of buildings)
     await queryInterface.createTable('floors', {

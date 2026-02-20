@@ -2,34 +2,43 @@
 const { Model } = require('sequelize')
 
 module.exports = (sequelize, DataTypes) => {
-  class Location extends Model {
+  class Floor extends Model {
     static associate(models) {
-      Location.hasMany(models.Building, {
-        foreignKey: 'location_id',
-        as: 'buildings',
-        onDelete: 'SET NULL',
+      Floor.belongsTo(models.Building, {
+        foreignKey: 'building_id',
+        as: 'building',
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+      })
+
+      Floor.hasMany(models.Room, {
+        foreignKey: 'floor_id',
+        as: 'rooms',
+        onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
       })
     }
   }
 
-  Location.init(
+  Floor.init(
     {
-      location_id: {
+      floor_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
       },
-      name: {
-        type: DataTypes.STRING(150),
+      building_id: {
+        type: DataTypes.INTEGER,
         allowNull: false,
-        unique: true,
       },
-      slug: {
-        type: DataTypes.STRING(150),
+      name: {
+        type: DataTypes.STRING(100),
         allowNull: false,
-        unique: true,
+      },
+      number: {
+        type: DataTypes.STRING(25),
+        allowNull: true,
       },
       created_at: {
         type: DataTypes.DATE,
@@ -44,8 +53,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: 'Location',
-      tableName: 'locations',
+      modelName: 'Floor',
+      tableName: 'floors',
       timestamps: true,
       createdAt: 'created_at',
       updatedAt: 'updated_at',
@@ -53,5 +62,5 @@ module.exports = (sequelize, DataTypes) => {
     },
   )
 
-  return Location
+  return Floor
 }

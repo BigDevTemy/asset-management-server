@@ -13,6 +13,9 @@ const {
   FormBuilder,
   Location,
   AssetCategoryClass,
+  Building,
+  Floor,
+  Room,
 } = require('../models')
 
 /**
@@ -195,6 +198,88 @@ const createLocationCrudService = () => {
   })
 }
 
+// Building CRUD Service Configuration
+const createBuildingCrudService = () => {
+  return new CrudService(Building, {
+    searchFields: ['name', 'address'],
+    defaultSort: 'created_at',
+    defaultOrder: 'DESC',
+    defaultPageSize: 10,
+    maxPageSize: 100,
+    excludeFromSearch: ['created_at', 'updated_at'],
+    defaultIncludes: [
+      {
+        model: Floor,
+        as: 'floors',
+        attributes: ['floor_id', 'name', 'number', 'building_id'],
+        required: false,
+      },
+      {
+        model: Location,
+        as: 'location',
+        attributes: ['location_id', 'name', 'slug'],
+        required: false,
+      },
+    ],
+    excludeFromResponse: [],
+  })
+}
+
+// Floor CRUD Service Configuration
+const createFloorCrudService = () => {
+  return new CrudService(Floor, {
+    searchFields: ['name', 'number'],
+    defaultSort: 'created_at',
+    defaultOrder: 'DESC',
+    defaultPageSize: 10,
+    maxPageSize: 100,
+    excludeFromSearch: ['created_at', 'updated_at'],
+    defaultIncludes: [
+      {
+        model: Building,
+        as: 'building',
+        attributes: ['building_id', 'name'],
+        required: false,
+      },
+      {
+        model: Room,
+        as: 'rooms',
+        attributes: ['room_id', 'name', 'code', 'floor_id'],
+        required: false,
+      },
+    ],
+    excludeFromResponse: [],
+  })
+}
+
+// Room CRUD Service Configuration
+const createRoomCrudService = () => {
+  return new CrudService(Room, {
+    searchFields: ['name', 'code'],
+    defaultSort: 'created_at',
+    defaultOrder: 'DESC',
+    defaultPageSize: 10,
+    maxPageSize: 100,
+    excludeFromSearch: ['created_at', 'updated_at'],
+    defaultIncludes: [
+      {
+        model: Floor,
+        as: 'floor',
+        attributes: ['floor_id', 'name', 'number', 'building_id'],
+        include: [
+          {
+            model: Building,
+            as: 'building',
+            attributes: ['building_id', 'name'],
+          },
+        ],
+        required: false,
+      },
+    ],
+    excludeFromResponse: [],
+  })
+}
+
 // Asset Category Class CRUD Service Configuration
 const createAssetCategoryClassCrudService = () => {
   return new CrudService(AssetCategoryClass, {
@@ -231,6 +316,9 @@ const createCrudService = (modelName) => {
     OrganizationSettings: createOrganizationSettingsCrudService,
     Location: createLocationCrudService,
     AssetCategoryClass: createAssetCategoryClassCrudService,
+    Building: createBuildingCrudService,
+    Floor: createFloorCrudService,
+    Room: createRoomCrudService,
   }
 
   const serviceFactory = services[modelName]
@@ -253,4 +341,7 @@ module.exports = {
   createOrganizationSettingsCrudService,
   createLocationCrudService,
   createAssetCategoryClassCrudService,
+  createBuildingCrudService,
+  createFloorCrudService,
+  createRoomCrudService,
 }
