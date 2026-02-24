@@ -37,6 +37,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
+      abbr: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      },
       address: {
         type: DataTypes.STRING(255),
         allowNull: true,

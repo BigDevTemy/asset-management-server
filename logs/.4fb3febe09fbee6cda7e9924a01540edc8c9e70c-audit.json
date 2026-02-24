@@ -6,21 +6,6 @@
     "auditLog": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\.4fb3febe09fbee6cda7e9924a01540edc8c9e70c-audit.json",
     "files": [
         {
-            "date": 1770937249768,
-            "name": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\http-2026-02-13.log",
-            "hash": "2769b79e033cec7c509f984ccdd08881da213c1aae1399cc0e63ac245b2e5b53"
-        },
-        {
-            "date": 1771074642751,
-            "name": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\http-2026-02-14.log",
-            "hash": "0f9500296547f364e003de4de0c59b77f1865d223887b88172dad18263d5ec5f"
-        },
-        {
-            "date": 1771158132695,
-            "name": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\http-2026-02-15.log",
-            "hash": "ba1a669dc9842fa5df281fe65d3d4a144e4116a3be11f7a0a394efba4eb86cca"
-        },
-        {
             "date": 1771533497235,
             "name": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\http-2026-02-19.log",
             "hash": "a428c89417f6ea48cfcf308bba46e9edaaa5c7d30659765e694ab78280a8c21b"
@@ -29,6 +14,16 @@
             "date": 1771542040717,
             "name": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\http-2026-02-20.log",
             "hash": "d9e6f040fb1a1f103287defcfb3190012a7b125a038e2ea18e0a0a667da7dc0f"
+        },
+        {
+            "date": 1771701674978,
+            "name": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\http-2026-02-21.log",
+            "hash": "7454d7ada3d541413b262936bd32ed8f82baeb0614c8439dd3d6c8735bca51c8"
+        },
+        {
+            "date": 1771856965981,
+            "name": "C:\\Users\\temiloluwao\\Downloads\\TheBanckendFiles\\server\\logs\\http-2026-02-23.log",
+            "hash": "cbd3395dc558f5cf74403d489d4a4d724e180f614815807410508498d25f543d"
         }
     ],
     "hashType": "sha256"

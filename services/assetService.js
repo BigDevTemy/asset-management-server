@@ -19,6 +19,7 @@ const {
   generateBarcodeFile,
   generateAssetBarcodeNumber,
 } = require('../utils/barcodeGenerator')
+const { generateQrCodeFile } = require('../utils/qrGenerator')
 const {
   uploadBase64Image,
   isCloudinaryConfigured,
@@ -143,6 +144,7 @@ class AssetService {
       // Generate barcode for the asset using the final asset_tag (human-readable)
       let barcodePath = null
       let barcodeNumber = null
+      let qrCodePath = null
       try {
         // Prefer the generated asset_tag; fall back to legacy asset_id-based code
         barcodeNumber =
@@ -175,6 +177,38 @@ class AssetService {
           barcodePath,
           format: '[Letter][Digit][Digit][AssetID][Digit][Digit]',
         })
+
+        // Generate QR code capturing core asset + form details
+        try {
+          const qrDir = path.join(__dirname, '../public/qrcodes')
+          await fs.mkdir(qrDir, { recursive: true })
+
+          const qrFilename = `qrcode_${asset.asset_id}.png`
+          const fullQrPath = path.join(qrDir, qrFilename)
+
+          const qrPayload = this._buildQrPayload({
+            asset,
+            formResponses: processedFormResponses,
+            formId: form_id,
+            barcodeNumber,
+            barcodePath,
+          })
+
+          await generateQrCodeFile(qrPayload, fullQrPath, { width: 360 })
+
+          qrCodePath = `/qrcodes/${qrFilename}`
+          await asset.update({ qr_code: qrCodePath }, { transaction })
+
+          logger.info('QR code generated for asset', {
+            asset_id: asset.asset_id,
+            qrCodePath,
+          })
+        } catch (qrError) {
+          logger.error('Failed to generate QR code for asset', {
+            asset_id: asset.asset_id,
+            error: qrError.message,
+          })
+        }
       } catch (barcodeError) {
         // Log barcode generation error but don't fail asset creation
         logger.error('Failed to generate barcode for asset', {
@@ -224,6 +258,8 @@ class AssetService {
       // Return the asset with the created transaction
       return {
         ...asset.dataValues,
+        barcode: barcodePath || asset.barcode,
+        qr_code: qrCodePath || asset.qr_code,
         createdTransaction: assetTransaction.dataValues,
         form_responses: processedFormResponses,
       }
@@ -429,7 +465,31 @@ class AssetService {
       await transaction.commit()
 
       const updated = await this.crudService.getById(id, additionalOptions)
-      return this._attachFields(updated)
+      const updatedAttached = this._attachFields(updated)
+
+      // Rebuild QR code after updates so scans show latest core/form details
+      try {
+        const responseMap = await this._fetchFormResponsesForQr(id)
+        const qrCodePath = await this._generateAndStoreQrCode(
+          updatedAttached,
+          {
+            formResponses: Object.keys(responseMap).length
+              ? responseMap
+              : form_responses || {},
+            formId: form_id || updatedAttached?.active_form_id,
+          },
+        )
+        if (qrCodePath) {
+          updatedAttached.qr_code = qrCodePath
+        }
+      } catch (qrError) {
+        logger.error('Failed to refresh QR code after asset update', {
+          asset_id: id,
+          error: qrError.message,
+        })
+      }
+
+      return updatedAttached
     } catch (error) {
       await transaction.rollback()
       throw error
@@ -1569,6 +1629,91 @@ class AssetService {
         : null
 
     return { ...sanitized, fields, responses, form }
+  }
+
+  /**
+   * Build a compact payload to encode inside the QR code.
+   * Keeps core asset info and the provided form responses.
+   */
+  _buildQrPayload({
+    asset,
+    formResponses = {},
+    formId = null,
+    barcodeNumber = null,
+    barcodePath = null,
+  }) {
+    if (!asset) return {}
+
+    const payload = {
+      version: '1',
+      generated_at: new Date().toISOString(),
+      asset_id: asset.asset_id,
+      asset_tag: asset.asset_tag,
+      asset_tag_group: asset.asset_tag_group,
+      status: asset.status,
+      approval_status: asset.approval_status,
+      asset_location: asset.asset_location,
+      category_id: asset.category_id ?? null,
+      form_id: formId || asset.active_form_id || null,
+      barcode: barcodeNumber || barcodePath || asset.barcode || null,
+      form_responses:
+        formResponses && Object.keys(formResponses).length
+          ? formResponses
+          : undefined,
+    }
+
+    return Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value !== undefined),
+    )
+  }
+
+  /**
+   * Generate and persist a QR code image for an asset.
+   */
+  async _generateAndStoreQrCode(
+    asset,
+    { formResponses = {}, formId = null, barcodeNumber = null, barcodePath = null } = {},
+  ) {
+    if (!asset || !asset.asset_id) return null
+
+    const qrDir = path.join(__dirname, '../public/qrcodes')
+    await fs.mkdir(qrDir, { recursive: true })
+
+    const qrFilename = `qrcode_${asset.asset_id}.png`
+    const fullQrPath = path.join(qrDir, qrFilename)
+
+    const qrPayload = this._buildQrPayload({
+      asset,
+      formResponses,
+      formId,
+      barcodeNumber,
+      barcodePath,
+    })
+
+    await generateQrCodeFile(qrPayload, fullQrPath, { width: 360 })
+
+    const relativePath = `/qrcodes/${qrFilename}`
+    await Asset.update(
+      { qr_code: relativePath },
+      { where: { asset_id: asset.asset_id } },
+    )
+
+    return relativePath
+  }
+
+  /**
+   * Fetch existing form responses as a simple object for QR embedding.
+   */
+  async _fetchFormResponsesForQr(assetId) {
+    const values = await AssetFormValue.findAll({
+      where: { asset_id: assetId },
+      attributes: ['form_field_id', 'value'],
+    })
+
+    return values.reduce((acc, row) => {
+      acc[String(row.form_field_id)] = _parseResponseValue(row.value)
+      return acc
+    }, {})
   }
 }
 

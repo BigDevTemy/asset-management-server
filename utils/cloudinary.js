@@ -1,4 +1,4 @@
-'use strict'
+﻿'use strict'
 
 const cloudinary = require('cloudinary').v2
 const logger = require('./logger')
@@ -16,7 +16,7 @@ if (isConfigured) {
     api_secret: process.env.CLOUDINARY_API_SECRET,
   })
 } else {
-  logger.warn('Cloudinary not configured � camera uploads will fail until env vars are set')
+  logger.warn('Cloudinary not configured – camera uploads will fail until env vars are set')
 }
 
 /**
@@ -30,7 +30,13 @@ async function uploadBase64Image(base64String, options = {}) {
     throw new Error('Cloudinary credentials are not configured')
   }
 
-  const folder = options.folder || process.env.CLOUDINARY_UPLOAD_FOLDER || 'asset_captures'
+  const baseFolder = process.env.CLOUDINARY_UPLOAD_FOLDER || 'assetimages'
+  const rawFolder = options.folder
+
+  const folder =
+    rawFolder && (rawFolder.startsWith(baseFolder) || rawFolder === baseFolder)
+      ? rawFolder.replace(/\/+/g, '/')
+      : [baseFolder, rawFolder].filter(Boolean).join('/').replace(/\/+/g, '/')
 
   const uploadResult = await cloudinary.uploader.upload(base64String, {
     folder,
@@ -46,3 +52,4 @@ module.exports = {
   uploadBase64Image,
   isCloudinaryConfigured: isConfigured,
 }
+

@@ -201,7 +201,7 @@ const createLocationCrudService = () => {
 // Building CRUD Service Configuration
 const createBuildingCrudService = () => {
   return new CrudService(Building, {
-    searchFields: ['name', 'address'],
+    searchFields: ['name', 'address', 'abbr'],
     defaultSort: 'created_at',
     defaultOrder: 'DESC',
     defaultPageSize: 10,
@@ -211,7 +211,7 @@ const createBuildingCrudService = () => {
       {
         model: Floor,
         as: 'floors',
-        attributes: ['floor_id', 'name', 'number', 'building_id'],
+        attributes: ['floor_id', 'name', 'abbr', 'number', 'building_id'],
         required: false,
       },
       {
@@ -228,7 +228,7 @@ const createBuildingCrudService = () => {
 // Floor CRUD Service Configuration
 const createFloorCrudService = () => {
   return new CrudService(Floor, {
-    searchFields: ['name', 'number'],
+    searchFields: ['name', 'abbr', 'number'],
     defaultSort: 'created_at',
     defaultOrder: 'DESC',
     defaultPageSize: 10,
@@ -238,13 +238,13 @@ const createFloorCrudService = () => {
       {
         model: Building,
         as: 'building',
-        attributes: ['building_id', 'name'],
+        attributes: ['building_id', 'name', 'abbr'],
         required: false,
       },
       {
         model: Room,
         as: 'rooms',
-        attributes: ['room_id', 'name', 'code', 'floor_id'],
+        attributes: ['room_id', 'name', 'abbr', 'code', 'floor_id'],
         required: false,
       },
     ],
@@ -255,7 +255,7 @@ const createFloorCrudService = () => {
 // Room CRUD Service Configuration
 const createRoomCrudService = () => {
   return new CrudService(Room, {
-    searchFields: ['name', 'code'],
+    searchFields: ['name', 'abbr', 'code'],
     defaultSort: 'created_at',
     defaultOrder: 'DESC',
     defaultPageSize: 10,
@@ -265,12 +265,12 @@ const createRoomCrudService = () => {
       {
         model: Floor,
         as: 'floor',
-        attributes: ['floor_id', 'name', 'number', 'building_id'],
+        attributes: ['floor_id', 'name', 'abbr', 'number', 'building_id'],
         include: [
           {
             model: Building,
             as: 'building',
-            attributes: ['building_id', 'name'],
+            attributes: ['building_id', 'name', 'abbr'],
           },
         ],
         required: false,
