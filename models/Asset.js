@@ -109,6 +109,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      codesheet_path: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
       active_form_id: {
         type: DataTypes.INTEGER,
         allowNull: true,

@@ -7,6 +7,7 @@ const {
   AssetFormValue,
   FormFields,
   FormBuilder,
+  OrganizationSettings,
 } = require('../models')
 const { createAssetCrudService } = require('./crudServiceFactory')
 const logger = require('../utils/logger')
@@ -25,6 +26,7 @@ const {
   isCloudinaryConfigured,
 } = require('../utils/cloudinary')
 const path = require('path')
+const Jimp = require('jimp')
 const crypto = require('crypto')
 const fs = require('fs').promises
 const { Op } = require('sequelize')
@@ -52,10 +54,21 @@ class AssetService {
     let barcodePath = null
     let qrCodePath = null
     let codeSheetPath = null
+    let orgLogoUrl = null
 
     try {
       const { form_id, form_responses, ...coreAssetData } = assetData || {}
       const sanitizedCoreData = this._sanitizeAssetFields(coreAssetData)
+
+      // Fetch organization logo once per request for codesheet/logo QR generation
+      try {
+        const orgSettings = await OrganizationSettings.findOne()
+        orgLogoUrl = orgSettings?.logo_url || null
+      } catch (err) {
+        logger.warn('Unable to load organization logo for codesheet', {
+          error: err?.message,
+        })
+      }
 
       const createdBy = sanitizedCoreData?.created_by ?? user?.user_id ?? null
 
@@ -152,9 +165,18 @@ class AssetService {
           assetDataWithCreator.asset_tag ||
           generateAssetBarcodeNumber(asset.asset_id)
 
+        const qrPayloadText = await this._buildHumanReadableQrString({
+          asset,
+          formId: form_id,
+          formResponses: processedFormResponses,
+          transaction,
+        })
+
         const generated = await this._generateAndStoreAssetCodes({
           asset,
           barcodeSourceText,
+          qrPayload: qrPayloadText,
+          orgLogoUrl,
           transaction,
         })
         barcodePath = generated.barcodePath
@@ -274,7 +296,9 @@ class AssetService {
       const missing = ['table', 'label_key', 'value_key'].filter(
         (key) => !params[key],
       )
-      const err = new Error(`Missing required parameters: ${missing.join(', ')}`)
+      const err = new Error(
+        `Missing required parameters: ${missing.join(', ')}`,
+      )
       err.statusCode = 400
       throw err
     }
@@ -284,7 +308,9 @@ class AssetService {
       !IDENTIFIER_REGEX.test(labelKey) ||
       !IDENTIFIER_REGEX.test(valueKey)
     ) {
-      const err = new Error('Invalid identifier: only letters, numbers, and underscore are allowed')
+      const err = new Error(
+        'Invalid identifier: only letters, numbers, and underscore are allowed',
+      )
       err.statusCode = 400
       throw err
     }
@@ -312,12 +338,16 @@ class AssetService {
 
     if (parentKey) {
       if (!IDENTIFIER_REGEX.test(parentKey)) {
-        const err = new Error('Invalid parent_key: only letters, numbers, and underscore are allowed')
+        const err = new Error(
+          'Invalid parent_key: only letters, numbers, and underscore are allowed',
+        )
         err.statusCode = 400
         throw err
       }
       if (!tableDefinition[parentKey]) {
-        const err = new Error(`Parent column not found on ${table}: ${parentKey}`)
+        const err = new Error(
+          `Parent column not found on ${table}: ${parentKey}`,
+        )
         err.statusCode = 400
         throw err
       }
@@ -325,7 +355,9 @@ class AssetService {
 
     if (linkId) {
       if (!IDENTIFIER_REGEX.test(linkId)) {
-        const err = new Error('Invalid link_id: only letters, numbers, and underscore are allowed')
+        const err = new Error(
+          'Invalid link_id: only letters, numbers, and underscore are allowed',
+        )
         err.statusCode = 400
         throw err
       }
@@ -343,7 +375,8 @@ class AssetService {
     const safeLink = linkId ? qg.quoteIdentifier(linkId) : null
 
     const cappedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)
-    const sortDirection = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
+    const sortDirection =
+      String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
 
     const selectCols = [`${safeValue} AS value`, `${safeLabel} AS label`]
     if (safeLink) {
@@ -359,7 +392,12 @@ class AssetService {
       replacements.search = `%${search}%`
     }
 
-    if (parentKey && parentId !== undefined && parentId !== null && parentId !== '') {
+    if (
+      parentKey &&
+      parentId !== undefined &&
+      parentId !== null &&
+      parentId !== ''
+    ) {
       whereClauses.push(`${safeParent} = :parentId`)
       replacements.parentId = parentId
     }
@@ -411,7 +449,12 @@ class AssetService {
       }
 
       if (form_id && form_responses && Object.keys(form_responses).length) {
-        await this._saveFormResponses(asset, form_id, form_responses, transaction)
+        await this._saveFormResponses(
+          asset,
+          form_id,
+          form_responses,
+          transaction,
+        )
       }
 
       await transaction.commit()
@@ -422,15 +465,12 @@ class AssetService {
       // Rebuild QR code after updates so scans show latest core/form details
       try {
         const responseMap = await this._fetchFormResponsesForQr(id)
-        const qrCodePath = await this._generateAndStoreQrCode(
-          updatedAttached,
-          {
-            formResponses: Object.keys(responseMap).length
-              ? responseMap
-              : form_responses || {},
-            formId: form_id || updatedAttached?.active_form_id,
-          },
-        )
+        const qrCodePath = await this._generateAndStoreQrCode(updatedAttached, {
+          formResponses: Object.keys(responseMap).length
+            ? responseMap
+            : form_responses || {},
+          formId: form_id || updatedAttached?.active_form_id,
+        })
         if (qrCodePath) {
           updatedAttached.qr_code = qrCodePath
         }
@@ -667,7 +707,11 @@ class AssetService {
       assetLocation || assetData.location || assetData.asset_location || ''
     const locationCode = this._slugCode(locationSource || 'LOC', 3)
 
-    const nextSeq = await this._computeNextSeq(categoryId, categoryCode, transaction)
+    const nextSeq = await this._computeNextSeq(
+      categoryId,
+      categoryCode,
+      transaction,
+    )
     const seqPart = String(nextSeq + sequenceOffset).padStart(3, '0')
     return `${locationCode}-${categoryCode}-${seqPart}`
   }
@@ -685,7 +729,9 @@ class AssetService {
 
     const classFieldId = config?.class_field_id || config?.classFieldId || null
     const classHierarchyLevelName =
-      config?.class_hierarchy_level_name || config?.classHierarchyLevelName || null
+      config?.class_hierarchy_level_name ||
+      config?.classHierarchyLevelName ||
+      null
 
     // Prefer resolving class from explicit class_field_id, then fall back to category and segment lookup
     let resolvedClassId = null
@@ -698,22 +744,27 @@ class AssetService {
         classHierarchyLevelName,
       )
 
-      if (classFieldValue === undefined || classFieldValue === null || classFieldValue === '') {
+      if (
+        classFieldValue === undefined ||
+        classFieldValue === null ||
+        classFieldValue === ''
+      ) {
         throw new Error(
           `Missing value for class_field_id ${classFieldId} required for asset tag group generation`,
         )
       }
 
-      const { classId, categoryId: catId } = await this._resolveClassFromFieldValue(
-        classFieldValue,
-        transaction,
-      )
+      const { classId, categoryId: catId } =
+        await this._resolveClassFromFieldValue(classFieldValue, transaction)
       resolvedClassId = classId
       resolvedCategoryId = catId
     }
 
     const categoryId =
-      assetData.category_id || assetData.categoryId || resolvedCategoryId || null
+      assetData.category_id ||
+      assetData.categoryId ||
+      resolvedCategoryId ||
+      null
     const categoryClassId =
       resolvedClassId ||
       (await this._getCategoryClassId(categoryId, transaction)) ||
@@ -955,9 +1006,7 @@ class AssetService {
       columnName === 'asset_tag_group' ? 'asset_tag_group' : 'asset_tag'
 
     const safePrefix = prefix || ''
-    const pattern = safePrefix
-      ? `${safePrefix}${separator}%`
-      : `%`
+    const pattern = safePrefix ? `${safePrefix}${separator}%` : `%`
 
     const [rows] = await Asset.sequelize.query(
       `
@@ -1165,7 +1214,10 @@ class AssetService {
     if (classRowsByText?.length) {
       const classIdRaw = classRowsByText[0].asset_class_id
       const parsed = Number(classIdRaw)
-      return { classId: Number.isFinite(parsed) ? parsed : classIdRaw || null, categoryId: null }
+      return {
+        classId: Number.isFinite(parsed) ? parsed : classIdRaw || null,
+        categoryId: null,
+      }
     }
 
     // Try category name as a fallback
@@ -1332,10 +1384,13 @@ class AssetService {
 
       return maxSeq + 1
     } catch (err) {
-      logger.warn('Failed to compute next asset tag sequence, defaulting to 1', {
-        categoryId,
-        error: err.message,
-      })
+      logger.warn(
+        'Failed to compute next asset tag sequence, defaulting to 1',
+        {
+          categoryId,
+          error: err.message,
+        },
+      )
       return 1
     }
   }
@@ -1399,7 +1454,9 @@ class AssetService {
 
       let label = null
       try {
-        const [rows] = await Asset.sequelize.query(sql, { replacements: { id } })
+        const [rows] = await Asset.sequelize.query(sql, {
+          replacements: { id },
+        })
         label = rows?.[0]?.label ?? null
       } catch (err) {
         logger.warn('Failed to resolve hierarchy label', {
@@ -1624,7 +1681,12 @@ class AssetService {
    */
   async _generateAndStoreQrCode(
     asset,
-    { formResponses = {}, formId = null, barcodeNumber = null, barcodePath = null } = {},
+    {
+      formResponses = {},
+      formId = null,
+      barcodeNumber = null,
+      barcodePath = null,
+    } = {},
   ) {
     if (!asset || !asset.asset_id) return null
 
@@ -1657,9 +1719,17 @@ class AssetService {
    * Generate barcode + QR (using the same payload) and a combined sheet with both side by side.
    * Keeps naming and options consistent with /api/assets/codes.
    */
-  async _generateAndStoreAssetCodes({ asset, barcodeSourceText, transaction }) {
+  async _generateAndStoreAssetCodes({
+    asset,
+    barcodeSourceText,
+    qrPayload = null,
+    orgLogoUrl = null,
+    transaction,
+  }) {
     if (!asset || !asset.asset_id || !barcodeSourceText) {
-      throw new Error('asset and barcodeSourceText are required for code generation')
+      throw new Error(
+        'asset and barcodeSourceText are required for code generation',
+      )
     }
 
     const codesDir = path.join(__dirname, '../public/codes')
@@ -1678,48 +1748,123 @@ class AssetService {
       includeText: true,
     })
 
-    await generateQrCodeFile(barcodeSourceText, fullQrPath, { width: 360 })
+    // Generate QR without embedding logo (plain QR, using supplied payload when provided)
+    const qrData = qrPayload || barcodeSourceText
+    await generateQrCodeFile(qrData, fullQrPath, { width: 360 })
 
-    // Build side-by-side sheet
+    // Build codesheet
+    let sheetCreated = false
     try {
-      const barcodeImg = await Jimp.read(fullBarcodePath)
       const qrImg = await Jimp.read(fullQrPath)
 
       const gutter = 24
-      const targetHeight = Math.max(barcodeImg.getHeight(), qrImg.getHeight())
 
-      // Normalize heights to align nicely
-      if (barcodeImg.getHeight() !== targetHeight) {
-        barcodeImg.contain(barcodeImg.getWidth(), targetHeight, Jimp.RESIZE_BILINEAR)
+      if (orgLogoUrl) {
+        // Layout: company logo (large) on the left, QR on the right, asset tag centered below
+        let logoImg = null
+        try {
+          logoImg = await Jimp.read(orgLogoUrl)
+        } catch (logoErr) {
+          logger.warn('Failed to read organization logo for codesheet', {
+            error: logoErr?.message,
+          })
+          logoImg = null
+        }
+
+        if (logoImg) {
+          const desiredLogoHeight = Math.floor(qrImg.getHeight() * 0.9)
+          const logoWidth = Math.floor(
+            (logoImg.getWidth() / logoImg.getHeight()) * desiredLogoHeight,
+          )
+          logoImg.resize(logoWidth, desiredLogoHeight, Jimp.RESIZE_BILINEAR)
+
+          const contentHeight = Math.max(desiredLogoHeight, qrImg.getHeight())
+          const sheetWidth = logoImg.getWidth() + qrImg.getWidth() + gutter * 3
+          const sheetHeight = contentHeight + gutter * 3 // extra gutter for tag text
+          const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
+
+          const logoX = gutter
+          const logoY = gutter + (contentHeight - logoImg.getHeight()) / 2
+          const qrX = logoX + logoImg.getWidth() + gutter
+          const qrY = gutter + (contentHeight - qrImg.getHeight()) / 2
+
+          sheet.composite(logoImg, logoX, logoY)
+          sheet.composite(qrImg, qrX, qrY)
+
+          const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+          const labelText = asset.asset_tag || barcodeSourceText
+          const textWidth = Jimp.measureText(font, labelText)
+          const textX = (sheetWidth - textWidth) / 2
+          const textY = gutter + contentHeight + gutter / 2
+          sheet.print(font, textX, textY, labelText)
+
+          await sheet.writeAsync(fullSheetPath)
+        } else {
+          // If logo failed to load, fall back to QR-only layout
+          const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+          const labelText = asset.asset_tag || barcodeSourceText
+          const textWidth = Jimp.measureText(font, labelText)
+          const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
+
+          const innerWidth = Math.max(qrImg.getWidth(), textWidth)
+          const sheetWidth = innerWidth + gutter * 2
+          const sheetHeight = qrImg.getHeight() + textHeight + gutter * 3
+          const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
+
+          const qrX = gutter + (innerWidth - qrImg.getWidth()) / 2
+          const qrY = gutter
+          const textX = gutter + (innerWidth - textWidth) / 2
+          const textY = qrY + qrImg.getHeight() + gutter
+
+          sheet.composite(qrImg, qrX, qrY)
+          sheet.print(font, textX, textY, labelText)
+
+          await sheet.writeAsync(fullSheetPath)
+        }
+      } else {
+        // Fallback: center QR with asset tag underneath (no logo available)
+        const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+        const labelText = asset.asset_tag || barcodeSourceText
+        const textWidth = Jimp.measureText(font, labelText)
+        const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
+
+        const innerWidth = Math.max(qrImg.getWidth(), textWidth)
+        const sheetWidth = innerWidth + gutter * 2
+        const sheetHeight = qrImg.getHeight() + textHeight + gutter * 3
+        const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
+
+        const qrX = gutter + (innerWidth - qrImg.getWidth()) / 2
+        const qrY = gutter
+        const textX = gutter + (innerWidth - textWidth) / 2
+        const textY = qrY + qrImg.getHeight() + gutter
+
+        sheet.composite(qrImg, qrX, qrY)
+        sheet.print(font, textX, textY, labelText)
+
+        await sheet.writeAsync(fullSheetPath)
       }
-      if (qrImg.getHeight() !== targetHeight) {
-        qrImg.contain(qrImg.getWidth(), targetHeight, Jimp.RESIZE_BILINEAR)
-      }
 
-      const sheetWidth = barcodeImg.getWidth() + qrImg.getWidth() + gutter * 3
-      const sheet = new Jimp(sheetWidth, targetHeight + gutter * 2, 0xffffffff)
-
-      let cursor = gutter
-      sheet.composite(barcodeImg, cursor, gutter)
-      cursor += barcodeImg.getWidth() + gutter
-      sheet.composite(qrImg, cursor, gutter)
-
-      await sheet.writeAsync(fullSheetPath)
+      sheetCreated = true
     } catch (sheetError) {
-      logger.warn('Failed to build combined code sheet; continuing with individual codes', {
-        asset_id: asset.asset_id,
-        error: sheetError.message,
-      })
+      logger.warn(
+        'Failed to build combined code sheet; continuing with individual codes',
+        {
+          asset_id: asset.asset_id,
+          error: sheetError.message,
+        },
+      )
     }
 
     const barcodePath = `/codes/${barcodeFilename}`
     const qrCodePath = `/codes/${qrFilename}`
-    const sheetPath = `/codes/${sheetFilename}`
+    const sheetPath = sheetCreated ? `/codes/${sheetFilename}` : null
 
     await asset.update(
-      { barcode: barcodePath, qr_code: qrCodePath },
+      { barcode: barcodePath, qr_code: qrCodePath, codesheet_path: sheetPath },
       { transaction },
     )
+
+    // Ensure in-memory copy has the value for immediate response usage
     asset.setDataValue('codesheet_path', sheetPath)
 
     logger.info('Asset codes generated', {
@@ -1731,6 +1876,98 @@ class AssetService {
     })
 
     return { barcodePath, qrCodePath, sheetPath }
+  }
+
+  /**
+   * Build a human-readable text block for QR payload, prioritizing asset_tag first,
+   * then selected form field labels/values. Skips camera and location field types.
+   */
+  async _buildHumanReadableQrString({
+    asset,
+    formId = null,
+    formResponses = {},
+    transaction,
+  }) {
+    const lines = []
+
+    if (asset?.asset_tag) {
+      lines.push(`ASSET TAG: ${asset.asset_tag}`)
+    }
+
+    if (asset?.name) {
+      lines.push(`NAME: ${asset.name}`)
+    }
+
+    if (asset?.status) {
+      lines.push(`STATUS: ${asset.status}`)
+    }
+
+    if (!formId) {
+      return lines.join('\n\n')
+    }
+
+    const fields = await FormFields.findAll({
+      where: { form_id: formId },
+      attributes: ['id', 'label', 'type'],
+      order: [['position', 'ASC']],
+      transaction,
+    })
+
+    const SKIP_TYPES = new Set(['camera', 'location'])
+
+    for (const field of fields) {
+      if (!field) continue
+      if (SKIP_TYPES.has(String(field.type || '').toLowerCase())) continue
+
+      const val =
+        formResponses?.[String(field.id)] ??
+        formResponses?.[field.id] ??
+        undefined
+      if (val === undefined || val === null || val === '') continue
+
+      const rendered = this._stringifyFormValue(val)
+      if (!rendered) continue
+
+      const label = field.label || `Field ${field.id}`
+      lines.push(`${label.toUpperCase()}: ${rendered}`)
+    }
+
+    return lines.join('\n\n')
+  }
+
+  /**
+   * Convert various form value shapes into a readable string.
+   */
+  _stringifyFormValue(val) {
+    if (val === null || val === undefined) return ''
+
+    if (Array.isArray(val)) {
+      return val
+        .map((v) => this._stringifyFormValue(v))
+        .filter(Boolean)
+        .join(', ')
+    }
+
+    if (typeof val === 'object') {
+      if (Array.isArray(val.resolved)) {
+        const resolved = val.resolved
+          .map((r) => r?.label || r?.value || r?.id)
+          .filter(Boolean)
+        if (resolved.length) return resolved.join(' / ')
+      }
+      if (val.selections && typeof val.selections === 'object') {
+        return Object.values(val.selections)
+          .map((v) => this._stringifyFormValue(v))
+          .filter(Boolean)
+          .join(', ')
+      }
+      return Object.values(val)
+        .map((v) => this._stringifyFormValue(v))
+        .filter(Boolean)
+        .join(', ')
+    }
+
+    return String(val)
   }
 
   /**
@@ -1755,7 +1992,12 @@ class AssetService {
    * @param {Object} params.qrData - JSON object to embed inside the QR code.
    * @returns {Promise<{barcodePath: string, qrCodePath: string}>}
    */
-  async generateAdhocCodes({ barcodeText, qrData, logoPath = null, logoScale = null }) {
+  async generateAdhocCodes({
+    barcodeText,
+    qrData,
+    logoPath = null,
+    logoScale = null,
+  }) {
     if (!barcodeText || typeof barcodeText !== 'string') {
       throw new Error('barcodeText is required and must be a non-empty string')
     }
@@ -1763,9 +2005,9 @@ class AssetService {
     const isValidObject =
       qrData !== null && typeof qrData === 'object' && !Array.isArray(qrData)
 
-    if (!isValidObject) {
-      throw new Error('qrData must be a JSON object')
-    }
+    // if (!isValidObject) {
+    //   throw new Error('qrData must be a JSON object')
+    // }
 
     const uniqueSuffix =
       typeof crypto.randomUUID === 'function'
@@ -1777,7 +2019,9 @@ class AssetService {
     const barcodeFilename = `custom_barcode_${uniqueSuffix}.png`
     const fullBarcodePath = path.join(barcodeDir, barcodeFilename)
 
-    await generateBarcodeFile(barcodeText, fullBarcodePath, { includeText: true })
+    await generateBarcodeFile(barcodeText, fullBarcodePath, {
+      includeText: true,
+    })
 
     const qrDir = path.join(__dirname, '../public/qrcodes/custom')
     await fs.mkdir(qrDir, { recursive: true })
@@ -1792,6 +2036,7 @@ class AssetService {
 
     const barcodePath = `/barcodes/custom/${barcodeFilename}`
     const qrCodePath = `/qrcodes/custom/${qrFilename}`
+    const sheetPath = `/barcodes/custom/custom_codesheet_${uniqueSuffix}.png`
 
     logger.info('Ad-hoc barcode and QR code generated', {
       barcodeTextLength: barcodeText.length,
@@ -1802,6 +2047,29 @@ class AssetService {
 
     return { barcodePath, qrCodePath }
   }
+}
+
+function generateJointCodeSheet(barcodePath, qrPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    Jimp.read([barcodePath, qrPath])
+      .then(([barcodeImg, qrImg]) => {
+        const gutter = 24
+        const innerHeight = Math.max(barcodeImg.getHeight(), qrImg.getHeight())
+        const sheetHeight = innerHeight + gutter * 2
+    const sheetWidth = barcodeImg.getWidth() + qrImg.getWidth() + gutter * 3
+        const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
+        sheet.composite(barcodeImg, gutter, gutter)
+        sheet.composite(qrImg, barcodeImg.getWidth() + gutter * 2, gutter)
+        sheet.write(outputPath, (err) => {
+          if (err) {
+            reject(err)
+          } else {
+            resolve(outputPath)
+          }
+        })
+      })
+      .catch(reject)
+  })
 }
 
 function _parseResponseValue(value) {
