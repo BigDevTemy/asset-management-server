@@ -118,6 +118,77 @@ router.get('/barcode/:code', authMiddleware.authenticate, assetsController.getBy
 
 /**
  * @swagger
+ * /api/assets/codes:
+ *   post:
+ *     summary: Generate a barcode (from text) and a QR code (from JSON payload)
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [barcode_text, qr_data]
+ *             properties:
+ *               barcode_text:
+ *                 type: string
+ *                 description: Plain text to encode as a barcode
+ *                 example: "ASSET-123456"
+ *               qr_data:
+ *                 type: object
+ *                 description: JSON object to embed inside the QR code
+ *                 example:
+ *                   asset_id: 123
+ *                   asset_tag: "ASSET-123456"
+ *                   note: "Ad-hoc QR payload"
+ *               qr_logo_path:
+ *                 type: string
+ *                 description: Optional path/URL to a logo image to place at the center of the QR code
+ *                 example: "./public/images/logo.png"
+ *               qr_logo_scale:
+ *                 type: number
+ *                 description: Optional logo scale as a fraction of QR width (defaults to 0.2, clamps 0.08-0.35)
+ *                 example: 0.2
+ *     responses:
+ *       201:
+ *         description: Barcode and QR code generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Success'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         barcode_url:
+ *                           type: string
+ *                         barcode_path:
+ *                           type: string
+ *                         qr_code_url:
+ *                           type: string
+ *                         qr_code_path:
+ *                           type: string
+ *             example:
+ *               success: true
+ *               message: "Barcode and QR code generated successfully"
+ *               data:
+ *                 barcode_url: "https://api.example.com/barcodes/custom/custom_barcode_123.png"
+ *                 barcode_path: "/barcodes/custom/custom_barcode_123.png"
+ *                 qr_code_url: "https://api.example.com/qrcodes/custom/custom_qrcode_123.png"
+ *                 qr_code_path: "/qrcodes/custom/custom_qrcode_123.png"
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
+router.post('/codes', authMiddleware.authenticate, assetsController.generateCodes);
+
+/**
+ * @swagger
  * /api/assets/my-assets:
  *   get:
  *     summary: Get assets assigned to the current user

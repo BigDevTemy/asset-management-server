@@ -18,6 +18,81 @@ const parseDateOnly = (value) => {
 // Initialize custom asset service
 const assetService = new AssetService();
 
+// Generate standalone barcode and QR code
+const generateCodes = async (req, res) => {
+  const {
+    barcode_text: rawBarcodeText,
+    qr_data: qrData,
+    qr_logo_path: qrLogoPath,
+    qr_logo_scale: qrLogoScale,
+  } = req.body || {};
+  const barcodeText = typeof rawBarcodeText === 'string' ? rawBarcodeText.trim() : '';
+  const parsedLogoScale =
+    qrLogoScale !== undefined && qrLogoScale !== null ? Number(qrLogoScale) : null;
+
+  if (!barcodeText) {
+    return res.status(400).json({
+      success: false,
+      message: 'barcode_text is required and must be a non-empty string',
+    });
+  }
+
+  const isValidQrObject =
+    qrData !== null && typeof qrData === 'object' && !Array.isArray(qrData);
+
+  if (!isValidQrObject) {
+    return res.status(400).json({
+      success: false,
+      message: 'qr_data is required and must be a JSON object',
+    });
+  }
+
+  try {
+    logger.info('Ad-hoc code generation request', {
+      userId: req.user?.user_id,
+      barcodeTextLength: barcodeText.length,
+      ip: req.ip || req.connection.remoteAddress,
+    });
+
+    const { barcodePath, qrCodePath } = await assetService.generateAdhocCodes({
+      barcodeText,
+      qrData,
+      logoPath: typeof qrLogoPath === 'string' ? qrLogoPath : null,
+      logoScale: Number.isFinite(parsedLogoScale) ? parsedLogoScale : null,
+    });
+
+    const protocol = req.protocol;
+    const host = req.get('host');
+
+    const barcodeUrl = `${protocol}://${host}${barcodePath}`;
+    const qrCodeUrl = `${protocol}://${host}${qrCodePath}`;
+
+    return res.status(201).json({
+      success: true,
+      message: 'Barcode and QR code generated successfully',
+      data: {
+        barcode_url: barcodeUrl,
+        barcode_path: barcodePath,
+        qr_code_url: qrCodeUrl,
+        qr_code_path: qrCodePath,
+      },
+    });
+  } catch (error) {
+    logger.logError(error, {
+      action: 'generate_codes',
+      userId: req.user?.user_id,
+      ip: req.ip || req.connection.remoteAddress,
+      barcodeTextLength: barcodeText.length,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to generate codes',
+      error: error.message,
+    });
+  }
+};
+
 // Lookup asset by barcode text (ASSET-######)
 const getByBarcode = async (req, res) => {
   try {
@@ -744,5 +819,6 @@ module.exports = {
   changeApprovalStatus,
   myAssets,
   listByCreator,
-  getBarcode
+  getBarcode,
+  generateCodes
 };

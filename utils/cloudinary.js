@@ -5,8 +5,8 @@ const logger = require('./logger')
 
 const isConfigured = Boolean(
   process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET,
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET,
 )
 
 if (isConfigured) {
@@ -16,7 +16,9 @@ if (isConfigured) {
     api_secret: process.env.CLOUDINARY_API_SECRET,
   })
 } else {
-  logger.warn('Cloudinary not configured – camera uploads will fail until env vars are set')
+  logger.warn(
+    'Cloudinary not configured – camera uploads will fail until env vars are set',
+  )
 }
 
 /**
@@ -52,4 +54,3 @@ module.exports = {
   uploadBase64Image,
   isCloudinaryConfigured: isConfigured,
 }
-

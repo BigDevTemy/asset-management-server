@@ -13,15 +13,15 @@ const fs = require('fs').promises;
  */
 const BARCODE_CONFIG = {
   TYPE: 'code128',           // Code 128 barcode type
-  SCALE_X: 3,                // Horizontal scaling factor
-  SCALE_Y: 3,                // Vertical scaling factor
-  HEIGHT: 10,                // Bar height in millimeters
+  SCALE_X: 4,                // Horizontal scaling factor (thicker bars for camera focus)
+  SCALE_Y: 4,                // Vertical scaling factor
+  HEIGHT: 15,                // Bar height in millimeters (taller bars = easier scans)
   INCLUDE_TEXT: true,        // Include human-readable text
-  TEXT_SIZE: 10,             // Font size for human-readable text
+  TEXT_SIZE: 14,             // Font size for human-readable text
   TEXT_POSITION: 'bottom',   // Position of the text
   BACKGROUND_COLOR: 'FFFFFF', // White background
   BAR_COLOR: '000000',       // Black bars
-  PADDING: 10                // Padding around barcode in pixels
+  PADDING: 24                // Quiet zone padding around barcode in pixels
 };
 
 /**
@@ -44,6 +44,7 @@ async function generateBarcodeBuffer(text, options = {}) {
       height: options.height || BARCODE_CONFIG.HEIGHT,
       includetext: options.includeText !== undefined ? options.includeText : BARCODE_CONFIG.INCLUDE_TEXT,
       textxalign: 'center',
+      textsize: options.textSize || BARCODE_CONFIG.TEXT_SIZE,
       backgroundcolor: options.backgroundColor || BARCODE_CONFIG.BACKGROUND_COLOR,
       barcolor: options.barColor || BARCODE_CONFIG.BAR_COLOR,
       padding: options.padding || BARCODE_CONFIG.PADDING

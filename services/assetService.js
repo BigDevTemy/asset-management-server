@@ -25,6 +25,7 @@ const {
   isCloudinaryConfigured,
 } = require('../utils/cloudinary')
 const path = require('path')
+const crypto = require('crypto')
 const fs = require('fs').promises
 const { Op } = require('sequelize')
 
@@ -48,6 +49,9 @@ class AssetService {
    */
   async createAsset(assetData, user, additionalOptions = {}) {
     const transaction = await Asset.sequelize.transaction()
+    let barcodePath = null
+    let qrCodePath = null
+    let codeSheetPath = null
 
     try {
       const { form_id, form_responses, ...coreAssetData } = assetData || {}
@@ -141,77 +145,24 @@ class AssetService {
         processedFormResponses = processedResponses
       }
 
-      // Generate barcode for the asset using the final asset_tag (human-readable)
-      let barcodePath = null
-      let barcodeNumber = null
-      let qrCodePath = null
+      // Generate barcode and QR code using the same payload as /api/assets/codes
       try {
-        // Prefer the generated asset_tag; fall back to legacy asset_id-based code
-        barcodeNumber =
+        const barcodeSourceText =
           asset.asset_tag ||
           assetDataWithCreator.asset_tag ||
           generateAssetBarcodeNumber(asset.asset_id)
 
-        // Define barcode directory and ensure it exists
-        const barcodeDir = path.join(__dirname, '../public/barcodes')
-        await fs.mkdir(barcodeDir, { recursive: true })
-
-        // Generate barcode filename and full path
-        const barcodeFilename = `barcode_${asset.asset_id}.png`
-        const fullBarcodePath = path.join(barcodeDir, barcodeFilename)
-
-        // Generate and save barcode as PNG (human-readable text included)
-        await generateBarcodeFile(barcodeNumber, fullBarcodePath, {
-          includeText: true,
+        const generated = await this._generateAndStoreAssetCodes({
+          asset,
+          barcodeSourceText,
+          transaction,
         })
-
-        // Store relative path in database
-        barcodePath = `/barcodes/${barcodeFilename}`
-
-        // Update asset with barcode path and barcode number
-        await asset.update({ barcode: barcodePath }, { transaction })
-
-        logger.info('Barcode generated for asset', {
-          asset_id: asset.asset_id,
-          barcodeNumber,
-          barcodePath,
-          format: '[Letter][Digit][Digit][AssetID][Digit][Digit]',
-        })
-
-        // Generate QR code capturing core asset + form details
-        try {
-          const qrDir = path.join(__dirname, '../public/qrcodes')
-          await fs.mkdir(qrDir, { recursive: true })
-
-          const qrFilename = `qrcode_${asset.asset_id}.png`
-          const fullQrPath = path.join(qrDir, qrFilename)
-
-          const qrPayload = this._buildQrPayload({
-            asset,
-            formResponses: processedFormResponses,
-            formId: form_id,
-            barcodeNumber,
-            barcodePath,
-          })
-
-          await generateQrCodeFile(qrPayload, fullQrPath, { width: 360 })
-
-          qrCodePath = `/qrcodes/${qrFilename}`
-          await asset.update({ qr_code: qrCodePath }, { transaction })
-
-          logger.info('QR code generated for asset', {
-            asset_id: asset.asset_id,
-            qrCodePath,
-          })
-        } catch (qrError) {
-          logger.error('Failed to generate QR code for asset', {
-            asset_id: asset.asset_id,
-            error: qrError.message,
-          })
-        }
+        barcodePath = generated.barcodePath
+        qrCodePath = generated.qrCodePath
+        codeSheetPath = generated.sheetPath
       } catch (barcodeError) {
-        // Log barcode generation error but don't fail asset creation
-        logger.error('Failed to generate barcode for asset', {
+        // Log barcode/QR generation error but don't fail asset creation
+        logger.error('Failed to generate codes for asset', {
           asset_id: asset.asset_id,
           error: barcodeError.message,
         })
@@ -260,6 +211,7 @@ class AssetService {
         ...asset.dataValues,
         barcode: barcodePath || asset.barcode,
         qr_code: qrCodePath || asset.qr_code,
+        codesheet_path: codeSheetPath || undefined,
         createdTransaction: assetTransaction.dataValues,
         form_responses: processedFormResponses,
       }
@@ -1702,6 +1654,86 @@ class AssetService {
   }
 
   /**
+   * Generate barcode + QR (using the same payload) and a combined sheet with both side by side.
+   * Keeps naming and options consistent with /api/assets/codes.
+   */
+  async _generateAndStoreAssetCodes({ asset, barcodeSourceText, transaction }) {
+    if (!asset || !asset.asset_id || !barcodeSourceText) {
+      throw new Error('asset and barcodeSourceText are required for code generation')
+    }
+
+    const codesDir = path.join(__dirname, '../public/codes')
+    await fs.mkdir(codesDir, { recursive: true })
+
+    const baseName = `asset_${asset.asset_id}`
+    const barcodeFilename = `${baseName}_barcode.png`
+    const qrFilename = `${baseName}_qrcode.png`
+    const sheetFilename = `${baseName}_codes.png`
+
+    const fullBarcodePath = path.join(codesDir, barcodeFilename)
+    const fullQrPath = path.join(codesDir, qrFilename)
+    const fullSheetPath = path.join(codesDir, sheetFilename)
+
+    await generateBarcodeFile(barcodeSourceText, fullBarcodePath, {
+      includeText: true,
+    })
+
+    await generateQrCodeFile(barcodeSourceText, fullQrPath, { width: 360 })
+
+    // Build side-by-side sheet
+    try {
+      const barcodeImg = await Jimp.read(fullBarcodePath)
+      const qrImg = await Jimp.read(fullQrPath)
+
+      const gutter = 24
+      const targetHeight = Math.max(barcodeImg.getHeight(), qrImg.getHeight())
+
+      // Normalize heights to align nicely
+      if (barcodeImg.getHeight() !== targetHeight) {
+        barcodeImg.contain(barcodeImg.getWidth(), targetHeight, Jimp.RESIZE_BILINEAR)
+      }
+      if (qrImg.getHeight() !== targetHeight) {
+        qrImg.contain(qrImg.getWidth(), targetHeight, Jimp.RESIZE_BILINEAR)
+      }
+
+      const sheetWidth = barcodeImg.getWidth() + qrImg.getWidth() + gutter * 3
+      const sheet = new Jimp(sheetWidth, targetHeight + gutter * 2, 0xffffffff)
+
+      let cursor = gutter
+      sheet.composite(barcodeImg, cursor, gutter)
+      cursor += barcodeImg.getWidth() + gutter
+      sheet.composite(qrImg, cursor, gutter)
+
+      await sheet.writeAsync(fullSheetPath)
+    } catch (sheetError) {
+      logger.warn('Failed to build combined code sheet; continuing with individual codes', {
+        asset_id: asset.asset_id,
+        error: sheetError.message,
+      })
+    }
+
+    const barcodePath = `/codes/${barcodeFilename}`
+    const qrCodePath = `/codes/${qrFilename}`
+    const sheetPath = `/codes/${sheetFilename}`
+
+    await asset.update(
+      { barcode: barcodePath, qr_code: qrCodePath },
+      { transaction },
+    )
+    asset.setDataValue('codesheet_path', sheetPath)
+
+    logger.info('Asset codes generated', {
+      asset_id: asset.asset_id,
+      barcodeTextLength: barcodeSourceText.length,
+      barcodePath,
+      qrCodePath,
+      sheetPath,
+    })
+
+    return { barcodePath, qrCodePath, sheetPath }
+  }
+
+  /**
    * Fetch existing form responses as a simple object for QR embedding.
    */
   async _fetchFormResponsesForQr(assetId) {
@@ -1714,6 +1746,61 @@ class AssetService {
       acc[String(row.form_field_id)] = _parseResponseValue(row.value)
       return acc
     }, {})
+  }
+
+  /**
+   * Generate standalone barcode and QR code files from provided payloads.
+   * @param {Object} params
+   * @param {string} params.barcodeText - Text to encode in the barcode image.
+   * @param {Object} params.qrData - JSON object to embed inside the QR code.
+   * @returns {Promise<{barcodePath: string, qrCodePath: string}>}
+   */
+  async generateAdhocCodes({ barcodeText, qrData, logoPath = null, logoScale = null }) {
+    if (!barcodeText || typeof barcodeText !== 'string') {
+      throw new Error('barcodeText is required and must be a non-empty string')
+    }
+
+    const isValidObject =
+      qrData !== null && typeof qrData === 'object' && !Array.isArray(qrData)
+
+    if (!isValidObject) {
+      throw new Error('qrData must be a JSON object')
+    }
+
+    const uniqueSuffix =
+      typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+
+    const barcodeDir = path.join(__dirname, '../public/barcodes/custom')
+    await fs.mkdir(barcodeDir, { recursive: true })
+    const barcodeFilename = `custom_barcode_${uniqueSuffix}.png`
+    const fullBarcodePath = path.join(barcodeDir, barcodeFilename)
+
+    await generateBarcodeFile(barcodeText, fullBarcodePath, { includeText: true })
+
+    const qrDir = path.join(__dirname, '../public/qrcodes/custom')
+    await fs.mkdir(qrDir, { recursive: true })
+    const qrFilename = `custom_qrcode_${uniqueSuffix}.png`
+    const fullQrPath = path.join(qrDir, qrFilename)
+
+    await generateQrCodeFile(qrData, fullQrPath, {
+      width: 360,
+      logoPath: logoPath || undefined,
+      logoScale: logoScale || undefined,
+    })
+
+    const barcodePath = `/barcodes/custom/${barcodeFilename}`
+    const qrCodePath = `/qrcodes/custom/${qrFilename}`
+
+    logger.info('Ad-hoc barcode and QR code generated', {
+      barcodeTextLength: barcodeText.length,
+      hasQrData: Boolean(qrData && Object.keys(qrData).length),
+      barcodePath,
+      qrCodePath,
+    })
+
+    return { barcodePath, qrCodePath }
   }
 }
 
