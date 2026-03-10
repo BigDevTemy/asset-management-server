@@ -29,12 +29,20 @@ class FormBuilderService {
   async create(formPayload, additionalOptions = {}) {
     const { fields = [], formFields = [], ...formData } = formPayload
     const combinedFields = formFields.length ? formFields : fields
+    const hasQrCodeConfig = Object.prototype.hasOwnProperty.call(
+      formData,
+      'qr_code_config',
+    )
+    const rawQrCodeConfig = hasQrCodeConfig ? formData.qr_code_config : undefined
     const normalizedFormData = {
       ...formData,
       asset_tag_config: this._parseJsonLike(formData.asset_tag_config),
       asset_tag_group_config: this._parseJsonLike(
         formData.asset_tag_group_config,
       ),
+    }
+    if (hasQrCodeConfig) {
+      delete normalizedFormData.qr_code_config
     }
     const transaction =
       additionalOptions.transaction ||
@@ -52,6 +60,15 @@ class FormBuilderService {
           this._normalizeFields(combinedFields, form.form_id),
           { transaction },
         )
+      }
+
+      if (hasQrCodeConfig) {
+        const resolvedQrCodeConfig = await this._resolveQrCodeConfigForForm(
+          form.form_id,
+          rawQrCodeConfig,
+          transaction,
+        )
+        await form.update({ qr_code_config: resolvedQrCodeConfig }, { transaction })
       }
 
       if (!externalTransaction) {
@@ -74,9 +91,23 @@ class FormBuilderService {
   }
 
   async update(formId, payload, additionalOptions = {}) {
+    const hasFieldsPayload = Object.prototype.hasOwnProperty.call(
+      payload || {},
+      'fields',
+    )
+    const hasFormFieldsPayload = Object.prototype.hasOwnProperty.call(
+      payload || {},
+      'formFields',
+    )
     const { fields = [], formFields, ...formData } = payload
     const combinedFields =
       Array.isArray(formFields) && formFields.length ? formFields : fields
+    const shouldUpdateFields = hasFieldsPayload || hasFormFieldsPayload
+    const hasQrCodeConfig = Object.prototype.hasOwnProperty.call(
+      formData,
+      'qr_code_config',
+    )
+    const rawQrCodeConfig = hasQrCodeConfig ? formData.qr_code_config : undefined
     const normalizedFormData = {
       ...formData,
       ...(Object.prototype.hasOwnProperty.call(formData, 'asset_tag_config')
@@ -92,6 +123,9 @@ class FormBuilderService {
             ),
           }
         : {}),
+    }
+    if (hasQrCodeConfig) {
+      delete normalizedFormData.qr_code_config
     }
 
     // Track which props were explicitly provided so we don't overwrite existing values unintentionally
@@ -134,7 +168,7 @@ class FormBuilderService {
         await form.update(normalizedFormData, { transaction })
       }
 
-      if (Array.isArray(combinedFields)) {
+      if (shouldUpdateFields && Array.isArray(combinedFields)) {
         const existingFields = await FormFields.findAll({
           where: { form_id: formId },
           transaction,
@@ -185,6 +219,15 @@ class FormBuilderService {
             transaction,
           })
         }
+      }
+
+      if (hasQrCodeConfig) {
+        const resolvedQrCodeConfig = await this._resolveQrCodeConfigForForm(
+          formId,
+          rawQrCodeConfig,
+          transaction,
+        )
+        await form.update({ qr_code_config: resolvedQrCodeConfig }, { transaction })
       }
 
       if (!externalTransaction) {
@@ -436,12 +479,131 @@ class FormBuilderService {
     }
   }
 
+  async _resolveQrCodeConfigForForm(formId, rawConfig, transaction) {
+    const normalizedConfig = this._normalizeQrCodeConfig(rawConfig)
+    if (normalizedConfig === undefined) return undefined
+    if (normalizedConfig === null) return null
+    if (!normalizedConfig.enabled) {
+      return { enabled: false, field_ids: [] }
+    }
+
+    const fields = await FormFields.findAll({
+      where: { form_id: formId },
+      attributes: ['id', 'label'],
+      order: [
+        ['position', 'ASC'],
+        ['id', 'ASC'],
+      ],
+      transaction,
+    })
+
+    const existingFieldIds = new Set(fields.map((field) => Number(field.id)))
+    const labelToId = new Map(
+      fields.map((field) => [String(field.label || '').trim().toLowerCase(), field.id]),
+    )
+
+    const resolvedFieldIds = []
+    const addResolvedId = (id) => {
+      if (!Number.isFinite(id)) return
+      if (!existingFieldIds.has(id)) return
+      if (!resolvedFieldIds.includes(id)) {
+        resolvedFieldIds.push(id)
+      }
+    }
+
+    const invalidFieldIds = []
+    for (const id of normalizedConfig.field_ids) {
+      if (!existingFieldIds.has(id)) {
+        invalidFieldIds.push(id)
+        continue
+      }
+      addResolvedId(id)
+    }
+
+    const unknownLabels = []
+    for (const label of normalizedConfig.field_labels) {
+      const mappedId = labelToId.get(label.trim().toLowerCase())
+      if (!mappedId) {
+        unknownLabels.push(label)
+        continue
+      }
+      addResolvedId(mappedId)
+    }
+
+    if (invalidFieldIds.length) {
+      throw new Error(
+        `qr_code_config contains invalid field_ids: ${invalidFieldIds.join(', ')}`,
+      )
+    }
+
+    if (unknownLabels.length) {
+      throw new Error(
+        `qr_code_config contains unknown field_labels: ${unknownLabels.join(', ')}`,
+      )
+    }
+
+    if (!resolvedFieldIds.length) {
+      throw new Error(
+        'qr_code_config.enabled requires at least one valid selected field',
+      )
+    }
+
+    return { enabled: true, field_ids: resolvedFieldIds }
+  }
+
+  _normalizeQrCodeConfig(rawConfig) {
+    if (rawConfig === undefined) return undefined
+
+    const parsed = this._parseJsonLike(rawConfig)
+    if (parsed === null) return null
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('qr_code_config must be a JSON object')
+    }
+
+    const fieldIds = this._toUniqueNumberArray(parsed.field_ids)
+    const fieldLabels = this._toUniqueStringArray(parsed.field_labels)
+    const enabled =
+      typeof parsed.enabled === 'boolean'
+        ? parsed.enabled
+        : fieldIds.length > 0 || fieldLabels.length > 0
+
+    return {
+      enabled: Boolean(enabled),
+      field_ids: fieldIds,
+      field_labels: fieldLabels,
+    }
+  }
+
+  _toUniqueNumberArray(value) {
+    if (!Array.isArray(value)) return []
+
+    const normalized = value
+      .map((entry) => Number(entry))
+      .filter((entry) => Number.isFinite(entry) && entry > 0)
+      .map((entry) => Math.trunc(entry))
+
+    return [...new Set(normalized)]
+  }
+
+  _toUniqueStringArray(value) {
+    if (!Array.isArray(value)) return []
+
+    const normalized = value
+      .map((entry) => (entry === null || entry === undefined ? '' : String(entry)))
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+
+    return [...new Set(normalized)]
+  }
+
   _parseConfigFields(form) {
     if (!form || typeof form !== 'object') return form
     return {
       ...form,
       asset_tag_config: this._parseJsonLike(form.asset_tag_config),
       asset_tag_group_config: this._parseJsonLike(form.asset_tag_group_config),
+      qr_code_config: this._parseJsonLike(form.qr_code_config),
     }
   }
 }

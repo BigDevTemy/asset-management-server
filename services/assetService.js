@@ -72,7 +72,7 @@ class AssetService {
 
       const createdBy = sanitizedCoreData?.created_by ?? user?.user_id ?? null
 
-      const formTagConfigs = form_id
+      const formConfigs = form_id
         ? await this._getFormTagConfigs(form_id, transaction)
         : {}
 
@@ -84,21 +84,21 @@ class AssetService {
             assetData: { ...sanitizedCoreData, ...tags },
             formId: form_id,
             formResponses: form_responses,
-            tagConfig: formTagConfigs?.asset_tag_config || null,
+            tagConfig: formConfigs?.asset_tag_config || null,
             transaction,
             sequenceOffset: offset,
           })
         }
 
         if (
-          formTagConfigs?.asset_tag_group_config?.enabled &&
+          formConfigs?.asset_tag_group_config?.enabled &&
           (force || !sanitizedCoreData.asset_tag_group)
         ) {
           tags.asset_tag_group = await this._generateAssetTagGroup({
             assetData: { ...sanitizedCoreData, ...tags },
             formId: form_id,
             formResponses: form_responses,
-            tagGroupConfig: formTagConfigs.asset_tag_group_config,
+            tagGroupConfig: formConfigs.asset_tag_group_config,
             transaction,
             sequenceOffset: offset,
           })
@@ -169,6 +169,7 @@ class AssetService {
           asset,
           formId: form_id,
           formResponses: processedFormResponses,
+          qrCodeConfig: formConfigs?.qr_code_config || null,
           transaction,
         })
 
@@ -965,6 +966,7 @@ class AssetService {
       asset_tag_group_config: this._parseConfigObject(
         form.asset_tag_group_config,
       ),
+      qr_code_config: this._parseConfigObject(form.qr_code_config),
     }
   }
 
@@ -1704,7 +1706,7 @@ class AssetService {
       barcodePath,
     })
 
-    await generateQrCodeFile(qrPayload, fullQrPath, { width: 360 })
+    await generateQrCodeFile(qrPayload, fullQrPath, { width: 360, margin: 0 })
 
     const relativePath = `/qrcodes/${qrFilename}`
     await Asset.update(
@@ -1750,14 +1752,22 @@ class AssetService {
 
     // Generate QR without embedding logo (plain QR, using supplied payload when provided)
     const qrData = qrPayload || barcodeSourceText
-    await generateQrCodeFile(qrData, fullQrPath, { width: 360 })
+    const codesheetQrWidth = 280
+    await generateQrCodeFile(qrData, fullQrPath, {
+      width: codesheetQrWidth,
+      margin: 0,
+    })
 
     // Build codesheet
     let sheetCreated = false
     try {
       const qrImg = await Jimp.read(fullQrPath)
 
-      const gutter = 24
+      const sidePadding = 0
+      const topPadding = 0
+      const logoQrGap = 8
+      const textGap = 12
+      const bottomPadding = 8
 
       if (orgLogoUrl) {
         // Layout: company logo (large) on the left, QR on the right, asset tag centered below
@@ -1772,30 +1782,47 @@ class AssetService {
         }
 
         if (logoImg) {
-          const desiredLogoHeight = Math.floor(qrImg.getHeight() * 0.9)
-          const logoWidth = Math.floor(
-            (logoImg.getWidth() / logoImg.getHeight()) * desiredLogoHeight,
-          )
-          logoImg.resize(logoWidth, desiredLogoHeight, Jimp.RESIZE_BILINEAR)
+          if (typeof logoImg.autocrop === 'function') {
+            logoImg.autocrop({ cropOnlyFrames: false, leaveBorder: 0 })
+          }
 
-          const contentHeight = Math.max(desiredLogoHeight, qrImg.getHeight())
-          const sheetWidth = logoImg.getWidth() + qrImg.getWidth() + gutter * 3
-          const sheetHeight = contentHeight + gutter * 3 // extra gutter for tag text
+          const maxLogoWidth = Math.floor(qrImg.getWidth() * 0.7)
+          const maxLogoHeight = Math.floor(qrImg.getHeight() * 0.5)
+          const logoScale = Math.min(
+            maxLogoWidth / logoImg.getWidth(),
+            maxLogoHeight / logoImg.getHeight(),
+            1,
+          )
+          const logoWidth = Math.max(Math.floor(logoImg.getWidth() * logoScale), 1)
+          const logoHeight = Math.max(
+            Math.floor(logoImg.getHeight() * logoScale),
+            1,
+          )
+          logoImg.resize(logoWidth, logoHeight, Jimp.RESIZE_BILINEAR)
+
+          const contentHeight = Math.max(logoImg.getHeight(), qrImg.getHeight())
+          const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+          const labelText = asset.asset_tag || barcodeSourceText
+          const textWidth = Jimp.measureText(font, labelText)
+          const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
+          const contentWidth =
+            logoImg.getWidth() + logoQrGap + qrImg.getWidth()
+          const sheetWidth = Math.max(contentWidth, textWidth + sidePadding * 2)
+          const sheetHeight =
+            topPadding + contentHeight + textGap + textHeight + bottomPadding
           const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
 
-          const logoX = gutter
-          const logoY = gutter + (contentHeight - logoImg.getHeight()) / 2
-          const qrX = logoX + logoImg.getWidth() + gutter
-          const qrY = gutter + (contentHeight - qrImg.getHeight()) / 2
+          const contentX = (sheetWidth - contentWidth) / 2
+          const logoX = contentX
+          const logoY = topPadding + (contentHeight - logoImg.getHeight()) / 2
+          const qrX = logoX + logoImg.getWidth() + logoQrGap
+          const qrY = topPadding + (contentHeight - qrImg.getHeight()) / 2
 
           sheet.composite(logoImg, logoX, logoY)
           sheet.composite(qrImg, qrX, qrY)
 
-          const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
-          const labelText = asset.asset_tag || barcodeSourceText
-          const textWidth = Jimp.measureText(font, labelText)
           const textX = (sheetWidth - textWidth) / 2
-          const textY = gutter + contentHeight + gutter / 2
+          const textY = topPadding + contentHeight + textGap
           sheet.print(font, textX, textY, labelText)
 
           await sheet.writeAsync(fullSheetPath)
@@ -1807,14 +1834,15 @@ class AssetService {
           const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
 
           const innerWidth = Math.max(qrImg.getWidth(), textWidth)
-          const sheetWidth = innerWidth + gutter * 2
-          const sheetHeight = qrImg.getHeight() + textHeight + gutter * 3
+          const sheetWidth = innerWidth + sidePadding * 2
+          const sheetHeight =
+            topPadding + qrImg.getHeight() + textGap + textHeight + bottomPadding
           const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
 
-          const qrX = gutter + (innerWidth - qrImg.getWidth()) / 2
-          const qrY = gutter
-          const textX = gutter + (innerWidth - textWidth) / 2
-          const textY = qrY + qrImg.getHeight() + gutter
+          const qrX = sidePadding + (innerWidth - qrImg.getWidth()) / 2
+          const qrY = topPadding
+          const textX = sidePadding + (innerWidth - textWidth) / 2
+          const textY = qrY + qrImg.getHeight() + textGap
 
           sheet.composite(qrImg, qrX, qrY)
           sheet.print(font, textX, textY, labelText)
@@ -1829,14 +1857,15 @@ class AssetService {
         const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
 
         const innerWidth = Math.max(qrImg.getWidth(), textWidth)
-        const sheetWidth = innerWidth + gutter * 2
-        const sheetHeight = qrImg.getHeight() + textHeight + gutter * 3
+        const sheetWidth = innerWidth + sidePadding * 2
+        const sheetHeight =
+          topPadding + qrImg.getHeight() + textGap + textHeight + bottomPadding
         const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
 
-        const qrX = gutter + (innerWidth - qrImg.getWidth()) / 2
-        const qrY = gutter
-        const textX = gutter + (innerWidth - textWidth) / 2
-        const textY = qrY + qrImg.getHeight() + gutter
+        const qrX = sidePadding + (innerWidth - qrImg.getWidth()) / 2
+        const qrY = topPadding
+        const textX = sidePadding + (innerWidth - textWidth) / 2
+        const textY = qrY + qrImg.getHeight() + textGap
 
         sheet.composite(qrImg, qrX, qrY)
         sheet.print(font, textX, textY, labelText)
@@ -1886,6 +1915,7 @@ class AssetService {
     asset,
     formId = null,
     formResponses = {},
+    qrCodeConfig = null,
     transaction,
   }) {
     const lines = []
@@ -1913,9 +1943,32 @@ class AssetService {
       transaction,
     })
 
+    const parsedQrCodeConfig = this._parseConfigObject(qrCodeConfig)
+    const selectedFieldIds = this._extractQrFieldIds(parsedQrCodeConfig)
+    const selectedOrder = new Map(
+      selectedFieldIds.map((id, index) => [Number(id), index]),
+    )
+    const configExplicitlyEnabled = Boolean(
+      parsedQrCodeConfig &&
+        typeof parsedQrCodeConfig === 'object' &&
+        !Array.isArray(parsedQrCodeConfig) &&
+        parsedQrCodeConfig.enabled === true,
+    )
+    const useConfiguredSelection =
+      configExplicitlyEnabled || selectedFieldIds.length > 0
+
+    const fieldsForQr = useConfiguredSelection
+      ? fields
+          .filter((field) => selectedOrder.has(Number(field.id)))
+          .sort(
+            (a, b) =>
+              selectedOrder.get(Number(a.id)) - selectedOrder.get(Number(b.id)),
+          )
+      : fields
+
     const SKIP_TYPES = new Set(['camera', 'location'])
 
-    for (const field of fields) {
+    for (const field of fieldsForQr) {
       if (!field) continue
       if (SKIP_TYPES.has(String(field.type || '').toLowerCase())) continue
 
@@ -1933,6 +1986,28 @@ class AssetService {
     }
 
     return lines.join('\n\n')
+  }
+
+  _extractQrFieldIds(qrCodeConfig) {
+    const parsed = this._parseConfigObject(qrCodeConfig)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return []
+    }
+
+    if (parsed.enabled === false) {
+      return []
+    }
+
+    if (!Array.isArray(parsed.field_ids)) {
+      return []
+    }
+
+    const normalized = parsed.field_ids
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+      .map((id) => Math.trunc(id))
+
+    return [...new Set(normalized)]
   }
 
   /**

@@ -37,6 +37,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: null,
       },
+      qr_code_config: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: null,
+      },
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
