@@ -1706,7 +1706,7 @@ class AssetService {
       barcodePath,
     })
 
-    await generateQrCodeFile(qrPayload, fullQrPath, { width: 360, margin: 0 })
+    await generateQrCodeFile(qrPayload, fullQrPath, { width: 240, margin: 0 })
 
     const relativePath = `/qrcodes/${qrFilename}`
     await Asset.update(
@@ -1752,7 +1752,7 @@ class AssetService {
 
     // Generate QR without embedding logo (plain QR, using supplied payload when provided)
     const qrData = qrPayload || barcodeSourceText
-    const codesheetQrWidth = 280
+    const codesheetQrWidth = 240
     await generateQrCodeFile(qrData, fullQrPath, {
       width: codesheetQrWidth,
       margin: 0,
@@ -1762,10 +1762,17 @@ class AssetService {
     let sheetCreated = false
     try {
       const qrImg = await Jimp.read(fullQrPath)
+      const sheetQrImg = qrImg.clone()
+      const combinedSheetQrSize = 200
+      sheetQrImg.contain(
+        combinedSheetQrSize,
+        combinedSheetQrSize,
+        Jimp.RESIZE_BILINEAR,
+      )
 
       const sidePadding = 0
-      const topPadding = 0
-      const logoQrGap = 8
+      const topPadding = 8
+      const logoQrGap = 12
       const textGap = 12
       const bottomPadding = 8
 
@@ -1786,8 +1793,8 @@ class AssetService {
             logoImg.autocrop({ cropOnlyFrames: false, leaveBorder: 0 })
           }
 
-          const maxLogoWidth = Math.floor(qrImg.getWidth() * 0.7)
-          const maxLogoHeight = Math.floor(qrImg.getHeight() * 0.5)
+          const maxLogoWidth = 220
+          const maxLogoHeight = 120
           const logoScale = Math.min(
             maxLogoWidth / logoImg.getWidth(),
             maxLogoHeight / logoImg.getHeight(),
@@ -1800,13 +1807,16 @@ class AssetService {
           )
           logoImg.resize(logoWidth, logoHeight, Jimp.RESIZE_BILINEAR)
 
-          const contentHeight = Math.max(logoImg.getHeight(), qrImg.getHeight())
+          const contentHeight = Math.max(
+            logoImg.getHeight(),
+            sheetQrImg.getHeight(),
+          )
           const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
           const labelText = asset.asset_tag || barcodeSourceText
           const textWidth = Jimp.measureText(font, labelText)
           const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
           const contentWidth =
-            logoImg.getWidth() + logoQrGap + qrImg.getWidth()
+            logoImg.getWidth() + logoQrGap + sheetQrImg.getWidth()
           const sheetWidth = Math.max(contentWidth, textWidth + sidePadding * 2)
           const sheetHeight =
             topPadding + contentHeight + textGap + textHeight + bottomPadding
@@ -1816,10 +1826,10 @@ class AssetService {
           const logoX = contentX
           const logoY = topPadding + (contentHeight - logoImg.getHeight()) / 2
           const qrX = logoX + logoImg.getWidth() + logoQrGap
-          const qrY = topPadding + (contentHeight - qrImg.getHeight()) / 2
+          const qrY = topPadding + (contentHeight - sheetQrImg.getHeight()) / 2
 
           sheet.composite(logoImg, logoX, logoY)
-          sheet.composite(qrImg, qrX, qrY)
+          sheet.composite(sheetQrImg, qrX, qrY)
 
           const textX = (sheetWidth - textWidth) / 2
           const textY = topPadding + contentHeight + textGap
@@ -1833,18 +1843,22 @@ class AssetService {
           const textWidth = Jimp.measureText(font, labelText)
           const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
 
-          const innerWidth = Math.max(qrImg.getWidth(), textWidth)
+          const innerWidth = Math.max(sheetQrImg.getWidth(), textWidth)
           const sheetWidth = innerWidth + sidePadding * 2
           const sheetHeight =
-            topPadding + qrImg.getHeight() + textGap + textHeight + bottomPadding
+            topPadding +
+            sheetQrImg.getHeight() +
+            textGap +
+            textHeight +
+            bottomPadding
           const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
 
-          const qrX = sidePadding + (innerWidth - qrImg.getWidth()) / 2
+          const qrX = sidePadding + (innerWidth - sheetQrImg.getWidth()) / 2
           const qrY = topPadding
           const textX = sidePadding + (innerWidth - textWidth) / 2
-          const textY = qrY + qrImg.getHeight() + textGap
+          const textY = qrY + sheetQrImg.getHeight() + textGap
 
-          sheet.composite(qrImg, qrX, qrY)
+          sheet.composite(sheetQrImg, qrX, qrY)
           sheet.print(font, textX, textY, labelText)
 
           await sheet.writeAsync(fullSheetPath)
@@ -1856,18 +1870,22 @@ class AssetService {
         const textWidth = Jimp.measureText(font, labelText)
         const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
 
-        const innerWidth = Math.max(qrImg.getWidth(), textWidth)
+        const innerWidth = Math.max(sheetQrImg.getWidth(), textWidth)
         const sheetWidth = innerWidth + sidePadding * 2
         const sheetHeight =
-          topPadding + qrImg.getHeight() + textGap + textHeight + bottomPadding
+          topPadding +
+          sheetQrImg.getHeight() +
+          textGap +
+          textHeight +
+          bottomPadding
         const sheet = new Jimp(sheetWidth, sheetHeight, 0xffffffff)
 
-        const qrX = sidePadding + (innerWidth - qrImg.getWidth()) / 2
+        const qrX = sidePadding + (innerWidth - sheetQrImg.getWidth()) / 2
         const qrY = topPadding
         const textX = sidePadding + (innerWidth - textWidth) / 2
-        const textY = qrY + qrImg.getHeight() + textGap
+        const textY = qrY + sheetQrImg.getHeight() + textGap
 
-        sheet.composite(qrImg, qrX, qrY)
+        sheet.composite(sheetQrImg, qrX, qrY)
         sheet.print(font, textX, textY, labelText)
 
         await sheet.writeAsync(fullSheetPath)

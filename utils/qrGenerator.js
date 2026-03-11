@@ -11,6 +11,12 @@ const DEFAULT_QR_OPTIONS = {
   errorCorrectionLevel: 'M', // bumped to H automatically when a logo is used
 }
 
+const DEFAULT_LOGO_SCALE = 0.16
+const MIN_LOGO_SCALE = 0.08
+const MAX_LOGO_SCALE = 0.35
+const LOGO_PADDING_RATIO = 0.08
+const MIN_LOGO_PADDING = 4
+
 /**
  * Generate a QR code PNG file for the provided payload.
  * Supports optional logo overlay at the center while keeping high error correction.
@@ -20,7 +26,7 @@ const DEFAULT_QR_OPTIONS = {
  * @param {Object} options - Optional QR code options.
  * @param {string} [options.logoPath] - Path to a logo image to place at the center.
  * @param {Buffer} [options.logoBuffer] - Raw buffer for the logo image.
- * @param {number} [options.logoScale=0.2] - Portion of QR width used for logo (0.08 - 0.35).
+ * @param {number} [options.logoScale=0.16] - Portion of QR width used for logo (0.08 - 0.35).
  * @returns {Promise<string>} - Resolves to the saved file path.
  */
 async function generateQrCodeFile(data, outputPath, options = {}) {
@@ -54,12 +60,18 @@ async function generateQrCodeFile(data, outputPath, options = {}) {
     const qrHeight = qrImage.getHeight()
 
     // Clamp logo scale to avoid obscuring too much of the code
-    const clampedScale = Math.min(Math.max(logoScale || 0.2, 0.08), 0.35)
+    const clampedScale = Math.min(
+      Math.max(logoScale || DEFAULT_LOGO_SCALE, MIN_LOGO_SCALE),
+      MAX_LOGO_SCALE,
+    )
     const targetLogoSize = Math.floor(qrWidth * clampedScale)
 
     // Resize logo and add a white background to preserve contrast
     logoImage.contain(targetLogoSize, targetLogoSize, Jimp.RESIZE_BILINEAR)
-    const padding = Math.max(Math.floor(targetLogoSize * 0.15), 6)
+    const padding = Math.max(
+      Math.floor(targetLogoSize * LOGO_PADDING_RATIO),
+      MIN_LOGO_PADDING,
+    )
     const bgSize = targetLogoSize + padding * 2
     const logoBg = new Jimp(bgSize, bgSize, 0xffffffff)
 
