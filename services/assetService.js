@@ -32,6 +32,38 @@ const fs = require('fs').promises
 const { Op } = require('sequelize')
 
 const IDENTIFIER_REGEX = /^[A-Za-z0-9_]+$/
+const ASSET_TAG_SCALE = 0.75
+
+async function buildScaledAssetTagLabel(labelText, maxWidth = null) {
+  const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+  const textWidth = Jimp.measureText(font, labelText)
+  const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
+  const labelImage = new Jimp(textWidth, textHeight, 0x00000000)
+
+  labelImage.print(font, 0, 0, labelText)
+
+  if (ASSET_TAG_SCALE !== 1) {
+    const scaledWidth = Math.max(
+      Math.round(labelImage.getWidth() * ASSET_TAG_SCALE),
+      1,
+    )
+    const scaledHeight = Math.max(
+      Math.round(labelImage.getHeight() * ASSET_TAG_SCALE),
+      1,
+    )
+    labelImage.resize(scaledWidth, scaledHeight, Jimp.RESIZE_BILINEAR)
+  }
+
+  if (maxWidth && labelImage.getWidth() > maxWidth) {
+    const fittedHeight = Math.max(
+      Math.round((labelImage.getHeight() * maxWidth) / labelImage.getWidth()),
+      1,
+    )
+    labelImage.resize(maxWidth, fittedHeight, Jimp.RESIZE_BILINEAR)
+  }
+
+  return labelImage
+}
 
 /**
  * Custom Asset Service that extends CRUD functionality
@@ -1811,12 +1843,15 @@ class AssetService {
             logoImg.getHeight(),
             sheetQrImg.getHeight(),
           )
-          const font = await Jimp.loadFont(Jimp.FONT_SANS_24_BLACK)
-          const labelText = asset.asset_tag || barcodeSourceText
-          const textWidth = Jimp.measureText(font, labelText)
-          const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
           const contentWidth =
             logoImg.getWidth() + logoQrGap + sheetQrImg.getWidth()
+          const labelText = asset.asset_tag || barcodeSourceText
+          const labelImg = await buildScaledAssetTagLabel(
+            labelText,
+            contentWidth,
+          )
+          const textWidth = labelImg.getWidth()
+          const textHeight = labelImg.getHeight()
           const sheetWidth = Math.max(contentWidth, textWidth + sidePadding * 2)
           const sheetHeight =
             topPadding + contentHeight + textGap + textHeight + bottomPadding
@@ -1833,15 +1868,18 @@ class AssetService {
 
           const textX = (sheetWidth - textWidth) / 2
           const textY = topPadding + contentHeight + textGap
-          sheet.print(font, textX, textY, labelText)
+          sheet.composite(labelImg, textX, textY)
 
           await sheet.writeAsync(fullSheetPath)
         } else {
           // If logo failed to load, fall back to QR-only layout
-          const font = await Jimp.loadFont(Jimp.FONT_SANS_24_BLACK)
           const labelText = asset.asset_tag || barcodeSourceText
-          const textWidth = Jimp.measureText(font, labelText)
-          const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
+          const labelImg = await buildScaledAssetTagLabel(
+            labelText,
+            sheetQrImg.getWidth(),
+          )
+          const textWidth = labelImg.getWidth()
+          const textHeight = labelImg.getHeight()
 
           const innerWidth = Math.max(sheetQrImg.getWidth(), textWidth)
           const sheetWidth = innerWidth + sidePadding * 2
@@ -1859,16 +1897,19 @@ class AssetService {
           const textY = qrY + sheetQrImg.getHeight() + textGap
 
           sheet.composite(sheetQrImg, qrX, qrY)
-          sheet.print(font, textX, textY, labelText)
+          sheet.composite(labelImg, textX, textY)
 
           await sheet.writeAsync(fullSheetPath)
         }
       } else {
         // Fallback: center QR with asset tag underneath (no logo available)
-        const font = await Jimp.loadFont(Jimp.FONT_SANS_24_BLACK)
         const labelText = asset.asset_tag || barcodeSourceText
-        const textWidth = Jimp.measureText(font, labelText)
-        const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
+        const labelImg = await buildScaledAssetTagLabel(
+          labelText,
+          sheetQrImg.getWidth(),
+        )
+        const textWidth = labelImg.getWidth()
+        const textHeight = labelImg.getHeight()
 
         const innerWidth = Math.max(sheetQrImg.getWidth(), textWidth)
         const sheetWidth = innerWidth + sidePadding * 2
@@ -1886,7 +1927,7 @@ class AssetService {
         const textY = qrY + sheetQrImg.getHeight() + textGap
 
         sheet.composite(sheetQrImg, qrX, qrY)
-        sheet.print(font, textX, textY, labelText)
+        sheet.composite(labelImg, textX, textY)
 
         await sheet.writeAsync(fullSheetPath)
       }
