@@ -32,35 +32,13 @@ const fs = require('fs').promises
 const { Op } = require('sequelize')
 
 const IDENTIFIER_REGEX = /^[A-Za-z0-9_]+$/
-const ASSET_TAG_SCALE = 0.75
-
-async function buildScaledAssetTagLabel(labelText, maxWidth = null) {
-  const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+async function buildScaledAssetTagLabel(labelText) {
+  const font = await Jimp.loadFont(Jimp.FONT_SANS_16_BLACK)
   const textWidth = Jimp.measureText(font, labelText)
   const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
   const labelImage = new Jimp(textWidth, textHeight, 0x00000000)
 
   labelImage.print(font, 0, 0, labelText)
-
-  if (ASSET_TAG_SCALE !== 1) {
-    const scaledWidth = Math.max(
-      Math.round(labelImage.getWidth() * ASSET_TAG_SCALE),
-      1,
-    )
-    const scaledHeight = Math.max(
-      Math.round(labelImage.getHeight() * ASSET_TAG_SCALE),
-      1,
-    )
-    labelImage.resize(scaledWidth, scaledHeight, Jimp.RESIZE_BILINEAR)
-  }
-
-  if (maxWidth && labelImage.getWidth() > maxWidth) {
-    const fittedHeight = Math.max(
-      Math.round((labelImage.getHeight() * maxWidth) / labelImage.getWidth()),
-      1,
-    )
-    labelImage.resize(maxWidth, fittedHeight, Jimp.RESIZE_BILINEAR)
-  }
 
   return labelImage
 }
@@ -1846,10 +1824,7 @@ class AssetService {
           const contentWidth =
             logoImg.getWidth() + logoQrGap + sheetQrImg.getWidth()
           const labelText = asset.asset_tag || barcodeSourceText
-          const labelImg = await buildScaledAssetTagLabel(
-            labelText,
-            contentWidth,
-          )
+          const labelImg = await buildScaledAssetTagLabel(labelText)
           const textWidth = labelImg.getWidth()
           const textHeight = labelImg.getHeight()
           const sheetWidth = Math.max(contentWidth, textWidth + sidePadding * 2)
@@ -1874,10 +1849,7 @@ class AssetService {
         } else {
           // If logo failed to load, fall back to QR-only layout
           const labelText = asset.asset_tag || barcodeSourceText
-          const labelImg = await buildScaledAssetTagLabel(
-            labelText,
-            sheetQrImg.getWidth(),
-          )
+          const labelImg = await buildScaledAssetTagLabel(labelText)
           const textWidth = labelImg.getWidth()
           const textHeight = labelImg.getHeight()
 
@@ -1904,10 +1876,7 @@ class AssetService {
       } else {
         // Fallback: center QR with asset tag underneath (no logo available)
         const labelText = asset.asset_tag || barcodeSourceText
-        const labelImg = await buildScaledAssetTagLabel(
-          labelText,
-          sheetQrImg.getWidth(),
-        )
+        const labelImg = await buildScaledAssetTagLabel(labelText)
         const textWidth = labelImg.getWidth()
         const textHeight = labelImg.getHeight()
 
