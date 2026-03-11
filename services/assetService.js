@@ -33,9 +33,8 @@ const { Op } = require('sequelize')
 
 const IDENTIFIER_REGEX = /^[A-Za-z0-9_]+$/
 const PRINT_LABEL_WIDTH = 400
-const PRINT_LABEL_HEIGHT = 160
+const PRINT_LABEL_HEIGHT = 200
 const PRINT_LABEL_SIDE_PADDING = 12
-const PRINT_LABEL_TOP_PADDING = 8
 const PRINT_ROW_GAP = 10
 const PRINT_TAG_GAP = 6
 const PRINT_QR_SIZE = 112
@@ -1799,7 +1798,6 @@ class AssetService {
       )
 
       const sidePadding = PRINT_LABEL_SIDE_PADDING
-      const topPadding = PRINT_LABEL_TOP_PADDING
       const logoQrGap = PRINT_ROW_GAP
       const textGap = PRINT_TAG_GAP
       const labelText = asset.asset_tag || barcodeSourceText
@@ -1809,7 +1807,6 @@ class AssetService {
       )
       const textWidth = labelImg.getWidth()
       const textHeight = labelImg.getHeight()
-      const labelY = topPadding + combinedSheetQrSize + textGap
       const sheet = new Jimp(PRINT_LABEL_WIDTH, PRINT_LABEL_HEIGHT, 0xffffffff)
 
       if (orgLogoUrl) {
@@ -1843,30 +1840,36 @@ class AssetService {
           )
           logoImg.resize(logoWidth, logoHeight, Jimp.RESIZE_BILINEAR)
 
+          const rowHeight = Math.max(
+            logoImg.getHeight(),
+            sheetQrImg.getHeight(),
+          )
           const contentWidth =
             logoImg.getWidth() + logoQrGap + sheetQrImg.getWidth()
           const contentX = (PRINT_LABEL_WIDTH - contentWidth) / 2
+          const blockHeight = rowHeight + textGap + textHeight
+          const blockY = (PRINT_LABEL_HEIGHT - blockHeight) / 2
           const logoX = contentX
-          const logoY =
-            topPadding + (combinedSheetQrSize - logoImg.getHeight()) / 2
+          const logoY = blockY + (rowHeight - logoImg.getHeight()) / 2
           const qrX = logoX + logoImg.getWidth() + logoQrGap
-          const qrY =
-            topPadding + (combinedSheetQrSize - sheetQrImg.getHeight()) / 2
+          const qrY = blockY + (rowHeight - sheetQrImg.getHeight()) / 2
 
           sheet.composite(logoImg, logoX, logoY)
           sheet.composite(sheetQrImg, qrX, qrY)
 
           const textX = (PRINT_LABEL_WIDTH - textWidth) / 2
-          const textY = labelY
+          const textY = blockY + rowHeight + textGap
           sheet.composite(labelImg, textX, textY)
 
           await sheet.writeAsync(fullSheetPath)
         } else {
           // If logo failed to load, fall back to QR-only layout
+          const blockHeight = sheetQrImg.getHeight() + textGap + textHeight
+          const blockY = (PRINT_LABEL_HEIGHT - blockHeight) / 2
           const qrX = (PRINT_LABEL_WIDTH - sheetQrImg.getWidth()) / 2
-          const qrY = topPadding
+          const qrY = blockY
           const textX = (PRINT_LABEL_WIDTH - textWidth) / 2
-          const textY = labelY
+          const textY = blockY + sheetQrImg.getHeight() + textGap
 
           sheet.composite(sheetQrImg, qrX, qrY)
           sheet.composite(labelImg, textX, textY)
@@ -1875,10 +1878,12 @@ class AssetService {
         }
       } else {
         // Fallback: center QR with asset tag underneath (no logo available)
+        const blockHeight = sheetQrImg.getHeight() + textGap + textHeight
+        const blockY = (PRINT_LABEL_HEIGHT - blockHeight) / 2
         const qrX = (PRINT_LABEL_WIDTH - sheetQrImg.getWidth()) / 2
-        const qrY = topPadding
+        const qrY = blockY
         const textX = (PRINT_LABEL_WIDTH - textWidth) / 2
-        const textY = labelY
+        const textY = blockY + sheetQrImg.getHeight() + textGap
 
         sheet.composite(sheetQrImg, qrX, qrY)
         sheet.composite(labelImg, textX, textY)
