@@ -1773,7 +1773,7 @@ class AssetService {
     try {
       const qrImg = await Jimp.read(fullQrPath)
       const sheetQrImg = qrImg.clone()
-      const combinedSheetQrSize = 200
+      const combinedSheetQrSize = 180
       sheetQrImg.contain(
         combinedSheetQrSize,
         combinedSheetQrSize,
