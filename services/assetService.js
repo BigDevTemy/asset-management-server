@@ -1811,7 +1811,7 @@ class AssetService {
             logoImg.getHeight(),
             sheetQrImg.getHeight(),
           )
-          const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+          const font = await Jimp.loadFont(Jimp.FONT_SANS_24_BLACK)
           const labelText = asset.asset_tag || barcodeSourceText
           const textWidth = Jimp.measureText(font, labelText)
           const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
@@ -1838,7 +1838,7 @@ class AssetService {
           await sheet.writeAsync(fullSheetPath)
         } else {
           // If logo failed to load, fall back to QR-only layout
-          const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+          const font = await Jimp.loadFont(Jimp.FONT_SANS_24_BLACK)
           const labelText = asset.asset_tag || barcodeSourceText
           const textWidth = Jimp.measureText(font, labelText)
           const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)
@@ -1865,7 +1865,7 @@ class AssetService {
         }
       } else {
         // Fallback: center QR with asset tag underneath (no logo available)
-        const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK)
+        const font = await Jimp.loadFont(Jimp.FONT_SANS_24_BLACK)
         const labelText = asset.asset_tag || barcodeSourceText
         const textWidth = Jimp.measureText(font, labelText)
         const textHeight = Jimp.measureTextHeight(font, labelText, textWidth)

@@ -574,3 +574,5 @@
 {"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-03-11 12:44:23:4423","url":"/favicon.ico","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36","userId":null}
 {"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"2ms","statusCode":304,"timestamp":"2026-03-11 12:44:23:4423","url":"/favicon.ico","userId":null}
 {"level":"http","message":"::1 - - [11/Mar/2026:11:44:23 +0000] \"GET /favicon.ico HTTP/1.1\" 304 - \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36\"","timestamp":"2026-03-11 12:44:23:4423"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-03-11 13:49:11:4911"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-03-11 13:49:22:4922"}
