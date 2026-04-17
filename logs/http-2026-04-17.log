@@ -1,0 +1,42 @@
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-17 07:57:16:5716"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-17 08:20:38:2038","url":"/","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"1455ms","statusCode":200,"timestamp":"2026-04-17 08:20:39:2039","url":"/","userId":null}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:20:39 +0000] \"GET / HTTP/1.1\" 200 2109 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:20:40:2040"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-17 08:21:32:2132","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"35ms","statusCode":200,"timestamp":"2026-04-17 08:21:33:2133","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:21:33 +0000] \"GET /api/auth/login HTTP/1.1\" 200 2109 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:21:33:2133"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-17 08:22:18:2218","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-17 08:22:18:2218"}
+{"action":"login","level":"warn","message":"Authentication Failed","reason":"Validation failed","success":false,"timestamp":"2026-04-17 08:22:19:2219","userId":null}
+{"action":"login","ip":"::1","level":"warn","message":"Authentication Failed","method":"POST","success":false,"timestamp":"2026-04-17 08:22:19:2219","userAgent":"PostmanRuntime/7.53.0"}
+{"ip":"::1","level":"warn","message":"HTTP Request","method":"POST","responseTime":"964ms","statusCode":400,"timestamp":"2026-04-17 08:22:19:2219","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:22:19 +0000] \"POST /api/auth/login HTTP/1.1\" 400 101 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:22:19:2219"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-17 08:22:51:2251","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-17 08:22:54:2254"}
+{"action":"login","email":"admin@gmail.com","level":"warn","message":"Authentication Failed","reason":"","success":false,"timestamp":"2026-04-17 08:22:55:2255","userId":null}
+{"action":"login","ip":"::1","level":"warn","message":"Authentication Failed","method":"POST","success":false,"timestamp":"2026-04-17 08:22:55:2255","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"warn","message":"HTTP Request","method":"POST","responseTime":"3638ms","statusCode":500,"timestamp":"2026-04-17 08:22:55:2255","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:22:55 +0000] \"POST /api/auth/login HTTP/1.1\" 500 75 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:22:55:2255"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-17 08:36:05:365","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-17 08:36:05:365"}
+{"action":"login","email":"admin@gmail.com","level":"warn","message":"Authentication Failed","reason":"Unknown database 'asset_manager'","success":false,"timestamp":"2026-04-17 08:36:09:369","userId":null}
+{"action":"login","ip":"::1","level":"warn","message":"Authentication Failed","method":"POST","success":false,"timestamp":"2026-04-17 08:36:09:369","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"warn","message":"HTTP Request","method":"POST","responseTime":"3371ms","statusCode":500,"timestamp":"2026-04-17 08:36:09:369","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:36:09 +0000] \"POST /api/auth/login HTTP/1.1\" 500 107 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:36:09:369"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-17 08:36:46:3646"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-17 08:36:51:3651","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-17 08:36:51:3651"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-17 08:36:55:3655"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-17 08:36:55:3655","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"POST","responseTime":"4739ms","statusCode":200,"timestamp":"2026-04-17 08:36:55:3655","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:36:55 +0000] \"POST /api/auth/login HTTP/1.1\" 200 599 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:36:55:3655"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-17 08:38:42:3842","url":"/api/assets/lookup?table=floors&label_key=name&value_key=abbr&parent_key=building_id&parent_id=4&link_id=floor_id","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"283ms","statusCode":200,"timestamp":"2026-04-17 08:38:42:3842","url":"/api/assets/lookup?table=floors&label_key=name&value_key=abbr&parent_key=building_id&parent_id=4&link_id=floor_id"}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:38:42 +0000] \"GET /api/assets/lookup?table=floors&label_key=name&value_key=abbr&parent_key=building_id&parent_id=4&link_id=floor_id HTTP/1.1\" 200 603 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:38:42:3842"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-17 08:39:47:3947","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"953ms","statusCode":200,"timestamp":"2026-04-17 08:39:47:3947","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id"}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:39:47 +0000] \"GET /api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id HTTP/1.1\" 200 2558 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:39:47:3947"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-17 08:56:32:5632"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-17 08:57:07:577","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"431ms","statusCode":200,"timestamp":"2026-04-17 08:57:07:577","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id"}
+{"level":"http","message":"::1 - - [17/Apr/2026:07:57:07 +0000] \"GET /api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id HTTP/1.1\" 200 11206 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-17 08:57:07:577"}

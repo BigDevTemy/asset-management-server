@@ -49,8 +49,7 @@ const { requirePermission } = require('../middleware/permissionMiddleware');
  *           type: integer
  *           minimum: 1
  *           maximum: 200
- *           default: 50
- *         description: Max rows to return
+ *         description: Optional max rows to return. If omitted, all matching rows are returned
  *       - in: query
  *         name: order
  *         schema:

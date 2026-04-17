@@ -310,7 +310,7 @@ class AssetService {
       parent_id: parentId,
       link_id: linkId,
       search,
-      limit = 50,
+      limit,
       order = 'ASC',
     } = params
 
@@ -402,7 +402,13 @@ class AssetService {
     const safeParent = parentKey ? qg.quoteIdentifier(parentKey) : null
     const safeLink = linkId ? qg.quoteIdentifier(linkId) : null
 
-    const cappedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)
+    const hasLimit =
+      limit !== undefined && limit !== null && String(limit).trim() !== ''
+    const parsedLimit = hasLimit ? parseInt(limit, 10) : null
+    const cappedLimit =
+      parsedLimit && Number.isFinite(parsedLimit)
+        ? Math.min(Math.max(parsedLimit, 1), 200)
+        : null
     const sortDirection =
       String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
 
@@ -434,7 +440,11 @@ class AssetService {
       sql += ` WHERE ${whereClauses.join(' AND ')}`
     }
 
-    sql += ` ORDER BY ${safeLabel} ${sortDirection} LIMIT ${cappedLimit}`
+    sql += ` ORDER BY ${safeLabel} ${sortDirection}`
+
+    if (cappedLimit) {
+      sql += ` LIMIT ${cappedLimit}`
+    }
 
     const [rows] = await Asset.sequelize.query(sql, { replacements })
     return rows
