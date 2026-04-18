@@ -476,6 +476,8 @@ router.get('/:id/barcode', authMiddleware.authenticate, assetsController.getBarc
  */
 router.get('/', authMiddleware.authenticate, assetsController.list);
 
+router.get('/export', authMiddleware.authenticate, assetsController.exportAssets);
+
 /**
  * @swagger
  * /api/assets/{id}:

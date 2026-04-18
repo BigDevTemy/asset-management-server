@@ -29,6 +29,8 @@ const path = require('path')
 const Jimp = require('jimp')
 const crypto = require('crypto')
 const fs = require('fs').promises
+const http = require('http')
+const https = require('https')
 const { Op } = require('sequelize')
 
 const IDENTIFIER_REGEX = /^[A-Za-z0-9_]+$/
@@ -40,6 +42,22 @@ const PRINT_TAG_GAP = 6
 const PRINT_QR_SIZE = 112
 const PRINT_LOGO_MAX_WIDTH = 110
 const PRINT_LOGO_MAX_HEIGHT = 56
+const ZIP_CENTRAL_DIRECTORY_HEADER = 0x02014b50
+const ZIP_LOCAL_FILE_HEADER = 0x04034b50
+const ZIP_END_OF_CENTRAL_DIRECTORY = 0x06054b50
+const ZIP_VERSION = 20
+
+const CRC32_TABLE = (() => {
+  const table = new Array(256)
+  for (let i = 0; i < 256; i += 1) {
+    let c = i
+    for (let j = 0; j < 8; j += 1) {
+      c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    }
+    table[i] = c >>> 0
+  }
+  return table
+})()
 
 async function buildScaledAssetTagLabel(labelText, maxWidth = null) {
   const font = await Jimp.loadFont(Jimp.FONT_SANS_16_BLACK)
@@ -628,6 +646,238 @@ class AssetService {
     const result = await this.crudService.list(filters, controllerOptions)
 
     return this._withFlatFields(result)
+  }
+
+  async exportAssetsArchive() {
+    const forms = await FormBuilder.findAll({
+      attributes: ['form_id', 'name'],
+      include: [
+        {
+          model: FormFields,
+          as: 'fields',
+          attributes: ['id', 'label', 'type', 'position'],
+          required: false,
+        },
+      ],
+      order: [
+        ['name', 'ASC'],
+        [{ model: FormFields, as: 'fields' }, 'position', 'ASC'],
+      ],
+    })
+
+    const assets = await Asset.findAll({
+      include: [
+        {
+          model: AssetFormValue,
+          as: 'formValues',
+          attributes: ['form_field_id', 'value'],
+          required: false,
+          include: [
+            {
+              model: FormFields,
+              as: 'field',
+              attributes: ['id', 'label', 'type', 'position'],
+            },
+          ],
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['user_id', 'full_name', 'email', 'employee_id'],
+          required: false,
+        },
+        {
+          model: FormBuilder,
+          as: 'activeForm',
+          attributes: ['form_id', 'name'],
+          required: false,
+        },
+      ],
+      order: [
+        ['created_at', 'DESC'],
+        [{ model: AssetFormValue, as: 'formValues' }, 'form_field_id', 'ASC'],
+      ],
+    })
+
+    const formsById = new Map(forms.map((form) => [form.form_id, form]))
+    const groups = new Map()
+
+    for (const assetRecord of assets) {
+      const asset = assetRecord.get({ plain: true })
+      const formId = asset.active_form_id || null
+      const fallbackForm = formId ? formsById.get(formId) : null
+      const formName =
+        asset.activeForm?.name ||
+        fallbackForm?.name ||
+        (formId ? `Form ${formId}` : 'Unassigned Assets')
+      const fieldsFromAssetValues = (asset.formValues || [])
+        .map((entry) => entry.field)
+        .filter(Boolean)
+      const fields = (asset.activeForm?.fields || fallbackForm?.fields || fieldsFromAssetValues || [])
+        .slice()
+        .sort((a, b) => (a.position || 0) - (b.position || 0))
+      const groupKey = formId === null ? 'unassigned' : `form:${formId}`
+
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          formId,
+          formName,
+          fields,
+          assets: [],
+        })
+      }
+
+      const group = groups.get(groupKey)
+      if (!group.fields.length && fields.length) {
+        group.fields = fields
+      }
+      group.assets.push(asset)
+    }
+
+    if (!groups.size) {
+      groups.set('Assets', {
+        formId: null,
+        formName: 'Assets',
+        fields: [],
+        assets: [],
+      })
+    }
+
+    const imagePathByUrl = new Map()
+    const worksheets = []
+
+    for (const group of groups.values()) {
+      const rows = []
+      const baseHeaders = [
+        'Asset ID',
+        'Asset Tag',
+        'Asset Tag Group',
+        'Status',
+        'Approval Status',
+        'Asset Location',
+        'Created By',
+        'Creator Email',
+        'Employee ID',
+        'Notes',
+        'Barcode',
+        'QR Code',
+        'Created At',
+        'Updated At',
+      ]
+      const fieldColumns = buildFieldColumnMap(group.fields, baseHeaders)
+
+      for (const asset of group.assets) {
+        const formValues = Array.isArray(asset.formValues) ? asset.formValues : []
+        const valuesByFieldId = new Map(
+          formValues.map((entry) => [String(entry.form_field_id), _parseResponseValue(entry.value)]),
+        )
+
+        const row = {
+          'Asset ID': asset.asset_id,
+          'Asset Tag': asset.asset_tag || '',
+          'Asset Tag Group': asset.asset_tag_group || '',
+          Status: asset.status || '',
+          'Approval Status': asset.approval_status || '',
+          'Asset Location': asset.asset_location || '',
+          'Created By': asset.creator?.full_name || '',
+          'Creator Email': asset.creator?.email || '',
+          'Employee ID': asset.creator?.employee_id || '',
+          Notes: asset.notes || '',
+          Barcode: asset.barcode || '',
+          'QR Code': asset.qr_code || '',
+          'Created At': this._formatExportDate(asset.created_at),
+          'Updated At': this._formatExportDate(asset.updated_at),
+        }
+
+        for (const field of group.fields) {
+          const rawValue = valuesByFieldId.get(String(field.id))
+          const normalizedValue = this._normalizeExportFieldValue(rawValue)
+
+          if (field.type === 'camera') {
+            const imageUrls = this._extractImageUrls(rawValue)
+
+            for (let index = 0; index < imageUrls.length; index += 1) {
+              const imageUrl = imageUrls[index]
+              if (!imagePathByUrl.has(imageUrl)) {
+                const imagePath = this._buildExportImagePath({
+                  formName: group.formName,
+                  assetTag: asset.asset_tag,
+                  imageIndex: index + 1,
+                  imageUrl,
+                })
+                imagePathByUrl.set(imageUrl, imagePath)
+              }
+            }
+          } else {
+            const columns = fieldColumns.get(String(field.id))
+            row[columns.valueHeader] = normalizedValue
+          }
+        }
+
+        rows.push(row)
+      }
+
+      const orderedHeaders = [...baseHeaders]
+
+      for (const field of group.fields) {
+        if (field.type === 'camera') {
+          continue
+        }
+        const columns = fieldColumns.get(String(field.id))
+        orderedHeaders.push(columns.valueHeader)
+      }
+
+      worksheets.push({
+        name: group.formName,
+        headers: orderedHeaders,
+        rows,
+      })
+    }
+
+    const workbookBuffer = this._buildXlsxBuffer(worksheets)
+
+    const imageEntries = []
+    let skippedImages = 0
+    for (const [imageUrl, imagePath] of imagePathByUrl.entries()) {
+      try {
+        const { buffer } = await this._downloadFile(imageUrl)
+        imageEntries.push({
+          path: imagePath,
+          data: buffer,
+        })
+      } catch (error) {
+        skippedImages += 1
+        logger.warn('Skipping asset export image download', {
+          imageUrl,
+          imagePath,
+          error: error.message,
+        })
+      }
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const exportsDir = path.join(__dirname, '../public/exports')
+    await fs.mkdir(exportsDir, { recursive: true })
+    const fileName = `assets-export-${timestamp}.zip`
+    const publicPath = `/exports/${fileName}`
+    const zipEntries = [
+      {
+        path: `assets-data-${timestamp}.xlsx`,
+        data: workbookBuffer,
+      },
+      ...imageEntries,
+    ]
+    const buffer = createZipArchive(zipEntries)
+    await fs.writeFile(path.join(exportsDir, fileName), buffer)
+
+    return {
+      fileName,
+      publicPath,
+      assetCount: assets.length,
+      worksheetCount: worksheets.length,
+      imageCount: imageEntries.length,
+      skippedImages,
+    }
   }
 
   _normalizeAssetFilters(params = {}) {
@@ -2073,6 +2323,154 @@ class AssetService {
     return String(val)
   }
 
+  _normalizeExportFieldValue(value) {
+    if (value === null || value === undefined) {
+      return ''
+    }
+
+    if (typeof value === 'string') {
+      return value
+    }
+
+    return this._stringifyFormValue(value)
+  }
+
+  _extractImageUrls(value) {
+    if (!value) {
+      return []
+    }
+
+    const values = Array.isArray(value) ? value : [value]
+
+    return values
+      .filter((entry) => typeof entry === 'string' && /^https?:\/\//i.test(entry))
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  }
+
+  _buildExportImagePath({
+    formName,
+    assetTag,
+    imageIndex,
+    imageUrl,
+  }) {
+    const folderName = sanitizePathSegment(formName || 'unassigned-assets')
+    const fileStem = buildExportImageFileStem(assetTag, imageIndex)
+    const extension = getExtensionFromUrl(imageUrl)
+    const fileName = `${fileStem}${extension}`
+    return `asset-images/${folderName}/${fileName}`
+  }
+
+  _formatExportDate(value) {
+    if (!value) {
+      return ''
+    }
+
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString()
+  }
+
+  _buildXlsxBuffer(worksheets) {
+    const safeWorksheets = Array.isArray(worksheets) && worksheets.length
+      ? worksheets
+      : [{ name: 'Assets', headers: ['Message'], rows: [{ Message: 'No assets found' }] }]
+
+    const usedNames = new Set()
+    const normalizedSheets = safeWorksheets.map((worksheet, index) => {
+      const headers = Array.isArray(worksheet.headers) ? worksheet.headers : []
+      const rows = Array.isArray(worksheet.rows) ? worksheet.rows : []
+      return {
+        id: index + 1,
+        relId: `rId${index + 1}`,
+        fileName: `sheet${index + 1}.xml`,
+        name: uniqueWorksheetName(worksheet.name, usedNames),
+        headers,
+        rows,
+      }
+    })
+
+    const entries = [
+      {
+        path: '[Content_Types].xml',
+        data: Buffer.from(buildXlsxContentTypes(normalizedSheets.length), 'utf8'),
+      },
+      {
+        path: '_rels/.rels',
+        data: Buffer.from(buildXlsxRootRels(), 'utf8'),
+      },
+      {
+        path: 'docProps/app.xml',
+        data: Buffer.from(buildXlsxAppProps(normalizedSheets), 'utf8'),
+      },
+      {
+        path: 'docProps/core.xml',
+        data: Buffer.from(buildXlsxCoreProps(), 'utf8'),
+      },
+      {
+        path: 'xl/workbook.xml',
+        data: Buffer.from(buildXlsxWorkbook(normalizedSheets), 'utf8'),
+      },
+      {
+        path: 'xl/_rels/workbook.xml.rels',
+        data: Buffer.from(buildXlsxWorkbookRels(normalizedSheets), 'utf8'),
+      },
+      {
+        path: 'xl/styles.xml',
+        data: Buffer.from(buildXlsxStyles(), 'utf8'),
+      },
+      ...normalizedSheets.map((sheet) => ({
+        path: `xl/worksheets/${sheet.fileName}`,
+        data: Buffer.from(buildXlsxWorksheet(sheet), 'utf8'),
+      })),
+    ]
+
+    return createZipArchive(entries)
+  }
+
+  async _downloadFile(url) {
+    const targetUrl = new URL(url)
+    const client = targetUrl.protocol === 'http:' ? http : https
+
+    return new Promise((resolve, reject) => {
+      const request = client.get(targetUrl, (response) => {
+        if (
+          response.statusCode &&
+          response.statusCode >= 300 &&
+          response.statusCode < 400 &&
+          response.headers.location
+        ) {
+          response.resume()
+          resolve(
+            this._downloadFile(new URL(response.headers.location, targetUrl).toString()),
+          )
+          return
+        }
+
+        if (response.statusCode !== 200) {
+          response.resume()
+          reject(
+            new Error(`Unexpected response status ${response.statusCode}`),
+          )
+          return
+        }
+
+        const chunks = []
+        response.on('data', (chunk) => chunks.push(chunk))
+        response.on('end', () => {
+          resolve({
+            buffer: Buffer.concat(chunks),
+            contentType: response.headers['content-type'] || null,
+          })
+        })
+      })
+
+      request.on('error', reject)
+      request.setTimeout(20000, () => {
+        request.destroy(new Error('Image download timed out'))
+      })
+    })
+  }
+
   /**
    * Fetch existing form responses as a simple object for QR embedding.
    */
@@ -2182,6 +2580,358 @@ function _parseResponseValue(value) {
   } catch {
     return value
   }
+}
+
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function sanitizeWorksheetName(name) {
+  const base = String(name || 'Sheet')
+    .replace(/[:\\/?*\[\]]/g, '_')
+    .trim()
+  return (base || 'Sheet').slice(0, 31)
+}
+
+function buildFieldColumnMap(fields, reservedHeaders = []) {
+  const usedHeaders = new Set(reservedHeaders)
+  const columnMap = new Map()
+
+  for (const field of fields || []) {
+    const baseLabel = String(field?.label || `Field ${field?.id || ''}`).trim() || `Field ${field?.id || ''}`
+    const valueHeader = uniqueHeaderName(baseLabel, usedHeaders)
+    const urlHeader =
+      String(field?.type).toLowerCase() === 'camera'
+        ? uniqueHeaderName(`${baseLabel} URLs`, usedHeaders)
+        : null
+
+    columnMap.set(String(field.id), {
+      valueHeader,
+      urlHeader,
+    })
+  }
+
+  return columnMap
+}
+
+function uniqueWorksheetName(name, usedNames) {
+  const base = sanitizeWorksheetName(name)
+  let candidate = base
+  let counter = 1
+
+  while (usedNames.has(candidate)) {
+    const suffix = `_${counter}`
+    candidate = `${base.slice(0, Math.max(31 - suffix.length, 1))}${suffix}`
+    counter += 1
+  }
+
+  usedNames.add(candidate)
+  return candidate
+}
+
+function uniqueHeaderName(name, usedNames) {
+  const base = String(name || 'Column').trim() || 'Column'
+  let candidate = base
+  let counter = 1
+
+  while (usedNames.has(candidate)) {
+    candidate = `${base} (${counter})`
+    counter += 1
+  }
+
+  usedNames.add(candidate)
+  return candidate
+}
+
+function sanitizePathSegment(value) {
+  return String(value || 'item')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'item'
+}
+
+function buildExportImageFileStem(assetTag, imageIndex) {
+  const rawTag = String(assetTag || 'asset').trim()
+  const safeTag = rawTag
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'asset'
+
+  const match = safeTag.match(/^(.*?)(\d+)$/)
+  if (!match) {
+    return `${sanitizePathSegment(safeTag)}_${String(imageIndex).padStart(3, '0')}`
+  }
+
+  const prefix = match[1]
+  const width = match[2].length
+  const sequence = String(imageIndex).padStart(width, '0')
+  return `${prefix}${sequence}`
+}
+
+function getExtensionFromUrl(imageUrl) {
+  try {
+    const parsed = new URL(imageUrl)
+    const ext = path.extname(parsed.pathname || '').toLowerCase()
+    if (ext && ext.length <= 5) {
+      return ext
+    }
+  } catch {
+    return '.jpg'
+  }
+
+  return '.jpg'
+}
+
+function getDosDateTime(date = new Date()) {
+  const year = Math.max(date.getFullYear(), 1980)
+  const dosTime =
+    ((date.getHours() & 0x1f) << 11) |
+    ((date.getMinutes() & 0x3f) << 5) |
+    ((Math.floor(date.getSeconds() / 2) & 0x1f) >>> 0)
+  const dosDate =
+    (((year - 1980) & 0x7f) << 9) |
+    (((date.getMonth() + 1) & 0x0f) << 5) |
+    (date.getDate() & 0x1f)
+
+  return { dosDate, dosTime }
+}
+
+function crc32(buffer) {
+  let crc = 0xffffffff
+  for (let i = 0; i < buffer.length; i += 1) {
+    crc = CRC32_TABLE[(crc ^ buffer[i]) & 0xff] ^ (crc >>> 8)
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function createZipArchive(entries) {
+  const localParts = []
+  const centralParts = []
+  let offset = 0
+
+  for (const entry of entries) {
+    const fileName = String(entry.path || '').replace(/\\/g, '/')
+    const data = Buffer.isBuffer(entry.data)
+      ? entry.data
+      : Buffer.from(entry.data || '')
+    const fileNameBuffer = Buffer.from(fileName, 'utf8')
+    const checksum = crc32(data)
+    const { dosDate, dosTime } = getDosDateTime()
+
+    const localHeader = Buffer.alloc(30)
+    localHeader.writeUInt32LE(ZIP_LOCAL_FILE_HEADER, 0)
+    localHeader.writeUInt16LE(ZIP_VERSION, 4)
+    localHeader.writeUInt16LE(0, 6)
+    localHeader.writeUInt16LE(0, 8)
+    localHeader.writeUInt16LE(dosTime, 10)
+    localHeader.writeUInt16LE(dosDate, 12)
+    localHeader.writeUInt32LE(checksum, 14)
+    localHeader.writeUInt32LE(data.length, 18)
+    localHeader.writeUInt32LE(data.length, 22)
+    localHeader.writeUInt16LE(fileNameBuffer.length, 26)
+    localHeader.writeUInt16LE(0, 28)
+
+    localParts.push(localHeader, fileNameBuffer, data)
+
+    const centralHeader = Buffer.alloc(46)
+    centralHeader.writeUInt32LE(ZIP_CENTRAL_DIRECTORY_HEADER, 0)
+    centralHeader.writeUInt16LE(ZIP_VERSION, 4)
+    centralHeader.writeUInt16LE(ZIP_VERSION, 6)
+    centralHeader.writeUInt16LE(0, 8)
+    centralHeader.writeUInt16LE(0, 10)
+    centralHeader.writeUInt16LE(dosTime, 12)
+    centralHeader.writeUInt16LE(dosDate, 14)
+    centralHeader.writeUInt32LE(checksum, 16)
+    centralHeader.writeUInt32LE(data.length, 20)
+    centralHeader.writeUInt32LE(data.length, 24)
+    centralHeader.writeUInt16LE(fileNameBuffer.length, 28)
+    centralHeader.writeUInt16LE(0, 30)
+    centralHeader.writeUInt16LE(0, 32)
+    centralHeader.writeUInt16LE(0, 34)
+    centralHeader.writeUInt16LE(0, 36)
+    centralHeader.writeUInt32LE(0, 38)
+    centralHeader.writeUInt32LE(offset, 42)
+
+    centralParts.push(centralHeader, fileNameBuffer)
+    offset += localHeader.length + fileNameBuffer.length + data.length
+  }
+
+  const centralDirectory = Buffer.concat(centralParts)
+  const localFiles = Buffer.concat(localParts)
+  const endRecord = Buffer.alloc(22)
+  endRecord.writeUInt32LE(ZIP_END_OF_CENTRAL_DIRECTORY, 0)
+  endRecord.writeUInt16LE(0, 4)
+  endRecord.writeUInt16LE(0, 6)
+  endRecord.writeUInt16LE(entries.length, 8)
+  endRecord.writeUInt16LE(entries.length, 10)
+  endRecord.writeUInt32LE(centralDirectory.length, 12)
+  endRecord.writeUInt32LE(localFiles.length, 16)
+  endRecord.writeUInt16LE(0, 20)
+
+  return Buffer.concat([localFiles, centralDirectory, endRecord])
+}
+
+function buildXlsxContentTypes(sheetCount) {
+  const worksheetOverrides = Array.from({ length: sheetCount }, (_, index) =>
+    `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`,
+  ).join('')
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  ${worksheetOverrides}
+</Types>`
+}
+
+function buildXlsxRootRels() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`
+}
+
+function buildXlsxAppProps(sheets) {
+  const titles = sheets.map((sheet) => `<vt:lpstr>${escapeXml(sheet.name)}</vt:lpstr>`).join('')
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>OpenAI Export</Application>
+  <HeadingPairs>
+    <vt:vector size="2" baseType="variant">
+      <vt:variant><vt:lpstr>Worksheets</vt:lpstr></vt:variant>
+      <vt:variant><vt:i4>${sheets.length}</vt:i4></vt:variant>
+    </vt:vector>
+  </HeadingPairs>
+  <TitlesOfParts>
+    <vt:vector size="${sheets.length}" baseType="lpstr">${titles}</vt:vector>
+  </TitlesOfParts>
+</Properties>`
+}
+
+function buildXlsxCoreProps() {
+  const created = new Date().toISOString()
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:creator>OpenAI</dc:creator>
+  <cp:lastModifiedBy>OpenAI</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${created}</dcterms:modified>
+</cp:coreProperties>`
+}
+
+function buildXlsxWorkbook(sheets) {
+  const sheetXml = sheets
+    .map(
+      (sheet) =>
+        `<sheet name="${escapeXml(sheet.name)}" sheetId="${sheet.id}" r:id="${sheet.relId}"/>`,
+    )
+    .join('')
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>${sheetXml}</sheets>
+</workbook>`
+}
+
+function buildXlsxWorkbookRels(sheets) {
+  const relationships = sheets
+    .map(
+      (sheet) =>
+        `<Relationship Id="${sheet.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/${sheet.fileName}"/>`,
+    )
+    .join('')
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${relationships}
+  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+}
+
+function buildXlsxStyles() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="2">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+  </fills>
+  <borders count="1">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="2">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`
+}
+
+function buildXlsxWorksheet(sheet) {
+  const allRows = [sheet.headers, ...sheet.rows.map((row) => sheet.headers.map((header) => row?.[header] ?? ''))]
+  const rowXml = allRows
+    .map((rowValues, rowIndex) => {
+      const cells = rowValues
+        .map((value, colIndex) =>
+          buildXlsxCell({
+            ref: `${toExcelColumnName(colIndex + 1)}${rowIndex + 1}`,
+            value,
+            styleIndex: rowIndex === 0 ? 1 : 0,
+          }),
+        )
+        .join('')
+      return `<row r="${rowIndex + 1}">${cells}</row>`
+    })
+    .join('')
+
+  const lastColumn = toExcelColumnName(Math.max(sheet.headers.length, 1))
+  const lastRow = Math.max(allRows.length, 1)
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:${lastColumn}${lastRow}"/>
+  <sheetData>${rowXml}</sheetData>
+</worksheet>`
+}
+
+function buildXlsxCell({ ref, value, styleIndex = 0 }) {
+  const text = String(value ?? '')
+  const preserve = /^[\s]|[\s]$|\n/.test(text) ? ' xml:space="preserve"' : ''
+  return `<c r="${ref}" t="inlineStr" s="${styleIndex}"><is><t${preserve}>${escapeXml(text)}</t></is></c>`
+}
+
+function toExcelColumnName(columnNumber) {
+  let n = Number(columnNumber)
+  let name = ''
+
+  while (n > 0) {
+    const remainder = (n - 1) % 26
+    name = String.fromCharCode(65 + remainder) + name
+    n = Math.floor((n - 1) / 26)
+  }
+
+  return name || 'A'
 }
 
 module.exports = AssetService

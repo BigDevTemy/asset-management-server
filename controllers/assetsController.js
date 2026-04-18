@@ -96,6 +96,56 @@ const generateCodes = async (req, res) => {
   }
 }
 
+const exportAssets = async (req, res) => {
+  try {
+    logger.info('Asset export request', {
+      userId: req.user?.user_id,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    const exportResult = await assetService.exportAssetsArchive()
+
+    logger.info('Asset export generated', {
+      userId: req.user?.user_id,
+      assetCount: exportResult.assetCount,
+      worksheetCount: exportResult.worksheetCount,
+      imageCount: exportResult.imageCount,
+      skippedImages: exportResult.skippedImages,
+      publicPath: exportResult.publicPath,
+    })
+
+    const protocol = req.protocol
+    const host = req.get('host')
+    const downloadUrl = `${protocol}://${host}${exportResult.publicPath}`
+
+    return res.status(200).json({
+      success: true,
+      message: 'Assets export generated successfully',
+      data: {
+        file_name: exportResult.fileName,
+        file_path: exportResult.publicPath,
+        download_url: downloadUrl,
+        asset_count: exportResult.assetCount,
+        worksheet_count: exportResult.worksheetCount,
+        image_count: exportResult.imageCount,
+        skipped_images: exportResult.skippedImages,
+      },
+    })
+  } catch (error) {
+    logger.logError(error, {
+      action: 'export_assets',
+      userId: req.user?.user_id,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to export assets',
+      error: error.message,
+    })
+  }
+}
+
 // Lookup asset by barcode text (ASSET-######)
 const getByBarcode = async (req, res) => {
   try {
@@ -829,6 +879,7 @@ module.exports = {
   getByBarcode,
   lookup,
   list,
+  exportAssets,
   getById,
   create,
   update,

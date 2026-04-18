@@ -1,0 +1,52 @@
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 13:50:26:5026"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 13:50:34:5034","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"warn","message":"HTTP Request","method":"GET","responseTime":"25ms","statusCode":401,"timestamp":"2026-04-18 13:50:34:5034","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id","userId":null}
+{"level":"http","message":"::1 - - [18/Apr/2026:12:50:34 +0000] \"GET /api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id HTTP/1.1\" 401 48 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 13:50:34:5034"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-18 13:50:41:5041","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-18 13:50:42:5042"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-18 13:50:43:5043"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-18 13:50:43:5043","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"POST","responseTime":"1551ms","statusCode":200,"timestamp":"2026-04-18 13:50:43:5043","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [18/Apr/2026:12:50:43 +0000] \"POST /api/auth/login HTTP/1.1\" 200 599 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 13:50:43:5043"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 13:51:07:517","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"71ms","statusCode":200,"timestamp":"2026-04-18 13:51:07:517","url":"/api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id"}
+{"level":"http","message":"::1 - - [18/Apr/2026:12:51:07 +0000] \"GET /api/assets/lookup?table=rooms&label_key=name&value_key=abbr&parent_key=floor_id&parent_id=9&link_id=room_id HTTP/1.1\" 200 11206 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 13:51:07:517"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 13:51:30:5130","url":"/api/assets/export","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"Asset export request","timestamp":"2026-04-18 13:51:30:5130","userId":7}
+{"assetCount":10,"imageCount":10,"level":"info","message":"Asset export generated","skippedImages":0,"timestamp":"2026-04-18 13:51:37:5137","userId":7,"worksheetCount":2}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"6608ms","statusCode":200,"timestamp":"2026-04-18 13:51:37:5137","url":"/api/assets/export"}
+{"level":"http","message":"::1 - - [18/Apr/2026:12:51:37 +0000] \"GET /api/assets/export HTTP/1.1\" 200 537492 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 13:51:37:5137"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 13:56:51:5651"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 13:56:58:5658"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 13:57:19:5719","url":"/api/assets/export","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"Asset export request","timestamp":"2026-04-18 13:57:19:5719","userId":7}
+{"assetCount":10,"imageCount":10,"level":"info","message":"Asset export generated","publicPath":"/exports/assets-export-2026-04-18T12-57-22-680Z.zip","skippedImages":0,"timestamp":"2026-04-18 13:57:22:5722","userId":7,"worksheetCount":2}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"3597ms","statusCode":200,"timestamp":"2026-04-18 13:57:22:5722","url":"/api/assets/export"}
+{"level":"http","message":"::1 - - [18/Apr/2026:12:57:22 +0000] \"GET /api/assets/export HTTP/1.1\" 200 360 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 13:57:22:5722"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:00:52:052"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:01:10:110"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:01:54:154"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 14:02:24:224","url":"/api/assets/export","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"Asset export request","timestamp":"2026-04-18 14:02:24:224","userId":7}
+{"assetCount":10,"imageCount":10,"level":"info","message":"Asset export generated","publicPath":"/exports/assets-export-2026-04-18T13-02-28-278Z.zip","skippedImages":0,"timestamp":"2026-04-18 14:02:28:228","userId":7,"worksheetCount":2}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"3786ms","statusCode":200,"timestamp":"2026-04-18 14:02:28:228","url":"/api/assets/export"}
+{"level":"http","message":"::1 - - [18/Apr/2026:13:02:28 +0000] \"GET /api/assets/export HTTP/1.1\" 200 360 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 14:02:28:228"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:19:00:190"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:19:36:1936"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 14:21:11:2111","url":"/api/assets/export","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"Asset export request","timestamp":"2026-04-18 14:21:11:2111","userId":7}
+{"assetCount":10,"imageCount":10,"level":"info","message":"Asset export generated","publicPath":"/exports/assets-export-2026-04-18T13-21-15-460Z.zip","skippedImages":0,"timestamp":"2026-04-18 14:21:15:2115","userId":7,"worksheetCount":2}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"3857ms","statusCode":200,"timestamp":"2026-04-18 14:21:15:2115","url":"/api/assets/export"}
+{"level":"http","message":"::1 - - [18/Apr/2026:13:21:15 +0000] \"GET /api/assets/export HTTP/1.1\" 200 360 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 14:21:15:2115"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 14:22:06:226","url":"/api/assets/export","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"Asset export request","timestamp":"2026-04-18 14:22:06:226","userId":7}
+{"assetCount":10,"imageCount":10,"level":"info","message":"Asset export generated","publicPath":"/exports/assets-export-2026-04-18T13-22-09-968Z.zip","skippedImages":0,"timestamp":"2026-04-18 14:22:09:229","userId":7,"worksheetCount":2}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"3404ms","statusCode":200,"timestamp":"2026-04-18 14:22:09:229","url":"/api/assets/export"}
+{"level":"http","message":"::1 - - [18/Apr/2026:13:22:09 +0000] \"GET /api/assets/export HTTP/1.1\" 200 360 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 14:22:09:229"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:26:50:2650"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:26:57:2657"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-18 14:27:53:2753","url":"/api/assets/export","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"Asset export request","timestamp":"2026-04-18 14:27:53:2753","userId":7}
+{"assetCount":10,"imageCount":10,"level":"info","message":"Asset export generated","publicPath":"/exports/assets-export-2026-04-18T13-27-56-507Z.zip","skippedImages":0,"timestamp":"2026-04-18 14:27:56:2756","userId":7,"worksheetCount":2}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"3503ms","statusCode":200,"timestamp":"2026-04-18 14:27:56:2756","url":"/api/assets/export"}
+{"level":"http","message":"::1 - - [18/Apr/2026:13:27:56 +0000] \"GET /api/assets/export HTTP/1.1\" 200 360 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 14:27:56:2756"}
