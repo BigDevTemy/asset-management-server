@@ -51,3 +51,22 @@
 {"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"3503ms","statusCode":200,"timestamp":"2026-04-18 14:27:56:2756","url":"/api/assets/export"}
 {"level":"http","message":"::1 - - [18/Apr/2026:13:27:56 +0000] \"GET /api/assets/export HTTP/1.1\" 200 360 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 14:27:56:2756"}
 {"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:48:55:4855"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 21:24:00:240"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-18 21:31:33:3133","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-18 21:31:33:3133"}
+{"action":"login","email":"admin@gmail.com","level":"warn","message":"Authentication Failed","reason":"","success":false,"timestamp":"2026-04-18 21:31:33:3133","userId":null}
+{"action":"login","ip":"::1","level":"warn","message":"Authentication Failed","method":"POST","success":false,"timestamp":"2026-04-18 21:31:33:3133","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"warn","message":"HTTP Request","method":"POST","responseTime":"633ms","statusCode":500,"timestamp":"2026-04-18 21:31:33:3133","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [18/Apr/2026:20:31:33 +0000] \"POST /api/auth/login HTTP/1.1\" 500 75 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 21:31:33:3133"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-18 21:32:11:3211","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-18 21:32:11:3211"}
+{"action":"login","email":"admin@gmail.com","level":"warn","message":"Authentication Failed","reason":"","success":false,"timestamp":"2026-04-18 21:32:11:3211","userId":null}
+{"action":"login","ip":"::1","level":"warn","message":"Authentication Failed","method":"POST","success":false,"timestamp":"2026-04-18 21:32:11:3211","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"warn","message":"HTTP Request","method":"POST","responseTime":"26ms","statusCode":500,"timestamp":"2026-04-18 21:32:11:3211","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [18/Apr/2026:20:32:11 +0000] \"POST /api/auth/login HTTP/1.1\" 500 75 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 21:32:11:3211"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"POST","timestamp":"2026-04-18 21:35:24:3524","url":"/api/auth/login","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-18 21:35:24:3524"}
+{"action":"login","email":"admin@gmail.com","level":"warn","message":"Authentication Failed","reason":"","success":false,"timestamp":"2026-04-18 21:35:24:3524","userId":null}
+{"action":"login","ip":"::1","level":"warn","message":"Authentication Failed","method":"POST","success":false,"timestamp":"2026-04-18 21:35:24:3524","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"warn","message":"HTTP Request","method":"POST","responseTime":"16ms","statusCode":500,"timestamp":"2026-04-18 21:35:24:3524","url":"/api/auth/login","userId":null}
+{"level":"http","message":"::1 - - [18/Apr/2026:20:35:24 +0000] \"POST /api/auth/login HTTP/1.1\" 500 75 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 21:35:24:3524"}
