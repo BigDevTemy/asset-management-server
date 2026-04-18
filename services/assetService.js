@@ -751,7 +751,7 @@ class AssetService {
       const baseHeaders = [
         'Asset ID',
         'Asset Tag',
-        'Asset Tag Group',
+        'Asset Class Tag',
         'Approval Status',
         'Created By',
         'Creator Email',
@@ -2351,9 +2351,7 @@ class AssetService {
     imageUrl,
   }) {
     const folderName = sanitizePathSegment(formName || 'unassigned-assets')
-    const fileStem = buildExportImageFileStem(assetTag, imageIndex)
-    const extension = getExtensionFromUrl(imageUrl)
-    const fileName = `${fileStem}${extension}`
+    const fileName = buildExportImageFileName(assetTag, imageIndex, imageUrl)
     return `asset-images/${folderName}/${fileName}`
   }
 
@@ -2652,7 +2650,7 @@ function sanitizePathSegment(value) {
     .slice(0, 80) || 'item'
 }
 
-function buildExportImageFileStem(assetTag, imageIndex) {
+function buildExportImageFileName(assetTag, imageIndex, imageUrl) {
   const rawTag = String(assetTag || 'asset').trim()
   const safeTag = rawTag
     .replace(/[\\/:*?"<>|]/g, '-')
@@ -2660,15 +2658,14 @@ function buildExportImageFileStem(assetTag, imageIndex) {
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '') || 'asset'
 
-  const match = safeTag.match(/^(.*?)(\d+)$/)
-  if (!match) {
-    return `${sanitizePathSegment(safeTag)}_${String(imageIndex).padStart(3, '0')}`
+  const originalName = getFileNameFromUrl(imageUrl)
+  if (originalName) {
+    return `${safeTag}_${originalName}`
   }
 
-  const prefix = match[1]
-  const width = match[2].length
-  const sequence = String(imageIndex).padStart(width, '0')
-  return `${prefix}${sequence}`
+  const fileStem = `${sanitizePathSegment(safeTag)}_${String(imageIndex).padStart(3, '0')}`
+  const extension = getExtensionFromUrl(imageUrl)
+  return `${fileStem}${extension}`
 }
 
 function getExtensionFromUrl(imageUrl) {
@@ -2683,6 +2680,20 @@ function getExtensionFromUrl(imageUrl) {
   }
 
   return '.jpg'
+}
+
+function getFileNameFromUrl(imageUrl) {
+  try {
+    const parsed = new URL(imageUrl)
+    const fileName = path.basename(parsed.pathname || '').trim()
+    if (!fileName) {
+      return ''
+    }
+
+    return fileName.replace(/[\\/:*?"<>|]/g, '-')
+  } catch {
+    return ''
+  }
 }
 
 function getDosDateTime(date = new Date()) {

@@ -50,3 +50,4 @@
 {"assetCount":10,"imageCount":10,"level":"info","message":"Asset export generated","publicPath":"/exports/assets-export-2026-04-18T13-27-56-507Z.zip","skippedImages":0,"timestamp":"2026-04-18 14:27:56:2756","userId":7,"worksheetCount":2}
 {"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"3503ms","statusCode":200,"timestamp":"2026-04-18 14:27:56:2756","url":"/api/assets/export"}
 {"level":"http","message":"::1 - - [18/Apr/2026:13:27:56 +0000] \"GET /api/assets/export HTTP/1.1\" 200 360 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-18 14:27:56:2756"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-18 14:48:55:4855"}
