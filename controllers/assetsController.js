@@ -3,6 +3,7 @@ const logger = require('../utils/logger')
 const { ASSET_STATUS_ARRAY } = require('../utils/constants')
 const path = require('path')
 const fs = require('fs').promises
+const { Op } = require('sequelize')
 
 const parseDateOnly = (value) => {
   if (!value) return null
@@ -211,6 +212,29 @@ const lookup = async (req, res) => {
 
 // List all assets with pagination and search
 const list = async (req, res) => {
+  let startDate
+  let endDateRaw
+  try {
+    startDate = parseDateOnly(req.query.start_date ?? req.query.startDate)
+    endDateRaw = parseDateOnly(req.query.end_date ?? req.query.endDate)
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    })
+  }
+
+  if (startDate && endDateRaw && endDateRaw < startDate) {
+    return res.status(400).json({
+      success: false,
+      message: 'end_date must be on or after start_date',
+    })
+  }
+
+  const endDate = endDateRaw
+    ? new Date(endDateRaw.getTime() + 24 * 60 * 60 * 1000)
+    : null
+
   try {
     logger.info('Assets list request', {
       userId: req.user?.user_id,
@@ -218,7 +242,30 @@ const list = async (req, res) => {
       ip: req.ip || req.connection.remoteAddress,
     })
 
-    const result = await assetService.list(req.query)
+    const pagingQuery = { ...req.query }
+    delete pagingQuery.start_date
+    delete pagingQuery.end_date
+    delete pagingQuery.startDate
+    delete pagingQuery.endDate
+
+    const rangeWhere = {}
+    if (startDate) {
+      rangeWhere.created_at = {
+        ...(rangeWhere.created_at || {}),
+        [Op.gte]: startDate,
+      }
+    }
+
+    if (endDate) {
+      rangeWhere.created_at = {
+        ...(rangeWhere.created_at || {}),
+        [Op.lt]: endDate,
+      }
+    }
+
+    const result = await assetService.list(pagingQuery, {
+      ...(Object.keys(rangeWhere).length ? { where: rangeWhere } : {}),
+    })
     const dataWithTag = (result.data || []).map((asset) => ({
       ...asset,
       asset_tag: asset.asset_tag ?? asset.assetTag ?? null,

@@ -877,7 +877,14 @@ class AssetService {
   }
 
   _normalizeAssetFilters(params = {}) {
-    const { form_id, ...rest } = params
+    const {
+      form_id,
+      start_date,
+      end_date,
+      startDate,
+      endDate,
+      ...rest
+    } = params
     const normalized = { ...rest }
 
     if (form_id !== undefined) {
