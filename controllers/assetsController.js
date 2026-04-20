@@ -1,6 +1,7 @@
 const AssetService = require('../services/assetService')
 const logger = require('../utils/logger')
 const { ASSET_STATUS_ARRAY } = require('../utils/constants')
+const assetExportJobService = require('../services/assetExportJobService')
 const path = require('path')
 const fs = require('fs').promises
 const { Op } = require('sequelize')
@@ -142,6 +143,157 @@ const exportAssets = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to export assets',
+      error: error.message,
+    })
+  }
+}
+
+const exportAssetsExcel = async (req, res) => {
+  try {
+    logger.info('Asset Excel export request', {
+      userId: req.user?.user_id,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    const exportResult = await assetService.exportAssetsExcel()
+
+    logger.info('Asset Excel export generated', {
+      userId: req.user?.user_id,
+      assetCount: exportResult.assetCount,
+      worksheetCount: exportResult.worksheetCount,
+      publicPath: exportResult.publicPath,
+    })
+
+    const protocol = req.protocol
+    const host = req.get('host')
+    const downloadUrl = `${protocol}://${host}${exportResult.publicPath}`
+
+    return res.status(200).json({
+      success: true,
+      message: 'Assets Excel export generated successfully',
+      data: {
+        file_name: exportResult.fileName,
+        file_path: exportResult.publicPath,
+        download_url: downloadUrl,
+        asset_count: exportResult.assetCount,
+        worksheet_count: exportResult.worksheetCount,
+      },
+    })
+  } catch (error) {
+    logger.logError(error, {
+      action: 'export_assets_excel',
+      userId: req.user?.user_id,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to export assets Excel',
+      error: error.message,
+    })
+  }
+}
+
+const exportAssetImages = async (req, res) => {
+  try {
+    logger.info('Asset images export job request', {
+      userId: req.user?.user_id,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    const job = await assetExportJobService.createImageExportJob({
+      requestedBy: req.user.user_id,
+    })
+
+    const protocol = req.protocol
+    const host = req.get('host')
+    const statusPath = `/api/assets/export/images/${job.export_job_id}`
+    const statusUrl = `${protocol}://${host}${statusPath}`
+
+    return res.status(202).json({
+      success: true,
+      message: 'Asset images export job created successfully',
+      data: {
+        job_id: job.export_job_id,
+        status: job.status,
+        status_path: statusPath,
+        status_url: statusUrl,
+      },
+    })
+  } catch (error) {
+    logger.logError(error, {
+      action: 'create_asset_images_export_job',
+      userId: req.user?.user_id,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create asset images export job',
+      error: error.message,
+    })
+  }
+}
+
+const getAssetImageExportJob = async (req, res) => {
+  try {
+    const jobId = parseInt(req.params.jobId, 10)
+    if (!Number.isInteger(jobId) || jobId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'jobId must be a valid integer',
+      })
+    }
+
+    const job = await assetExportJobService.getImageExportJobForUser(
+      jobId,
+      req.user.user_id,
+    )
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Asset export job not found',
+      })
+    }
+
+    const protocol = req.protocol
+    const host = req.get('host')
+    const downloadUrl = job.file_path
+      ? `${protocol}://${host}${job.file_path}`
+      : null
+
+    return res.status(200).json({
+      success: true,
+      message: 'Asset export job retrieved successfully',
+      data: {
+        job_id: job.export_job_id,
+        status: job.status,
+        progress: job.progress,
+        total_items: job.total_items,
+        processed_items: job.processed_items,
+        asset_count: job.asset_count,
+        image_count: job.image_count,
+        skipped_images: job.skipped_images,
+        file_name: job.file_name,
+        file_path: job.file_path,
+        download_url: downloadUrl,
+        error_message: job.error_message,
+        started_at: job.started_at,
+        completed_at: job.completed_at,
+      },
+    })
+  } catch (error) {
+    logger.logError(error, {
+      action: 'get_asset_image_export_job',
+      userId: req.user?.user_id,
+      jobId: req.params.jobId,
+      ip: req.ip || req.connection.remoteAddress,
+    })
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve asset export job',
       error: error.message,
     })
   }
@@ -927,6 +1079,9 @@ module.exports = {
   lookup,
   list,
   exportAssets,
+  exportAssetsExcel,
+  exportAssetImages,
+  getAssetImageExportJob,
   getById,
   create,
   update,

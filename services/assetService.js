@@ -42,6 +42,7 @@ const PRINT_TAG_GAP = 6
 const PRINT_QR_SIZE = 112
 const PRINT_LOGO_MAX_WIDTH = 110
 const PRINT_LOGO_MAX_HEIGHT = 56
+const IMAGE_EXPORT_DOWNLOAD_CONCURRENCY = 4
 const ZIP_CENTRAL_DIRECTORY_HEADER = 0x02014b50
 const ZIP_LOCAL_FILE_HEADER = 0x04034b50
 const ZIP_END_OF_CENTRAL_DIRECTORY = 0x06054b50
@@ -649,6 +650,132 @@ class AssetService {
   }
 
   async exportAssetsArchive() {
+    const exportData = await this._prepareAssetsExportData()
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const exportsDir = path.join(__dirname, '../public/exports')
+    await fs.mkdir(exportsDir, { recursive: true })
+    const fileName = `assets-export-${timestamp}.zip`
+    const publicPath = `/exports/${fileName}`
+    const zipEntries = [
+      {
+        path: `assets-data-${timestamp}.xlsx`,
+        data: exportData.workbookBuffer,
+      },
+      ...exportData.imageEntries,
+    ]
+    const buffer = createZipArchive(zipEntries)
+    await fs.writeFile(path.join(exportsDir, fileName), buffer)
+
+    return {
+      fileName,
+      publicPath,
+      assetCount: exportData.assetCount,
+      worksheetCount: exportData.worksheetCount,
+      imageCount: exportData.imageCount,
+      skippedImages: exportData.skippedImages,
+    }
+  }
+
+  async exportAssetsExcel() {
+    const exportData = await this._prepareAssetsExportData({ includeImages: false })
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const exportsDir = path.join(__dirname, '../public/exports')
+    await fs.mkdir(exportsDir, { recursive: true })
+    const fileName = `assets-export-excel-${timestamp}.xlsx`
+    const publicPath = `/exports/${fileName}`
+
+    await fs.writeFile(path.join(exportsDir, fileName), exportData.workbookBuffer)
+
+    return {
+      fileName,
+      publicPath,
+      assetCount: exportData.assetCount,
+      worksheetCount: exportData.worksheetCount,
+    }
+  }
+
+  async exportAssetImages() {
+    const exportData = await this._prepareAssetsExportData({ includeWorkbook: false })
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const exportsDir = path.join(__dirname, '../public/exports')
+    await fs.mkdir(exportsDir, { recursive: true })
+    const fileName = `assets-export-images-${timestamp}.zip`
+    const publicPath = `/exports/${fileName}`
+    const zipEntries = exportData.imageEntries.length
+      ? exportData.imageEntries
+      : [
+          {
+            path: 'README.txt',
+            data: Buffer.from('No asset images were found for export.', 'utf8'),
+          },
+        ]
+
+    const buffer = createZipArchive(zipEntries)
+    await fs.writeFile(path.join(exportsDir, fileName), buffer)
+
+    return {
+      fileName,
+      publicPath,
+      assetCount: exportData.assetCount,
+      imageCount: exportData.imageCount,
+      skippedImages: exportData.skippedImages,
+    }
+  }
+
+  async exportAssetImagesArchive({ onProgress } = {}) {
+    const imageManifest = await this._collectAssetImageExportManifest()
+    const totalItems = imageManifest.imageTargets.length
+
+    if (typeof onProgress === 'function') {
+      await onProgress({
+        progress: totalItems ? 0 : 100,
+        totalItems,
+        processedItems: 0,
+        assetCount: imageManifest.assetCount,
+        imageCount: 0,
+        skippedImages: 0,
+      })
+    }
+
+    const { imageEntries, skippedImages } = await this._downloadAssetImageEntries(
+      imageManifest.imageTargets,
+      {
+        assetCount: imageManifest.assetCount,
+        onProgress,
+      },
+    )
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const exportsDir = path.join(__dirname, '../public/exports')
+    await fs.mkdir(exportsDir, { recursive: true })
+    const fileName = `assets-export-images-${timestamp}.zip`
+    const publicPath = `/exports/${fileName}`
+    const zipEntries = imageEntries.length
+      ? imageEntries
+      : [
+          {
+            path: 'README.txt',
+            data: Buffer.from('No asset images were found for export.', 'utf8'),
+          },
+        ]
+
+    const buffer = createZipArchive(zipEntries)
+    await fs.writeFile(path.join(exportsDir, fileName), buffer)
+
+    return {
+      fileName,
+      publicPath,
+      assetCount: imageManifest.assetCount,
+      imageCount: imageEntries.length,
+      skippedImages,
+      totalItems,
+    }
+  }
+
+  async _prepareAssetsExportData({
+    includeWorkbook = true,
+    includeImages = true,
+  } = {}) {
     const forms = await FormBuilder.findAll({
       attributes: ['form_id', 'name'],
       include: [
@@ -830,48 +957,171 @@ class AssetService {
       })
     }
 
-    const workbookBuffer = this._buildXlsxBuffer(worksheets)
+    const workbookBuffer = includeWorkbook
+      ? this._buildXlsxBuffer(worksheets)
+      : null
 
     const imageEntries = []
     let skippedImages = 0
-    for (const [imageUrl, imagePath] of imagePathByUrl.entries()) {
-      try {
-        const { buffer } = await this._downloadFile(imageUrl)
-        imageEntries.push({
-          path: imagePath,
-          data: buffer,
-        })
-      } catch (error) {
-        skippedImages += 1
-        logger.warn('Skipping asset export image download', {
-          imageUrl,
-          imagePath,
-          error: error.message,
-        })
+    if (includeImages) {
+      for (const [imageUrl, imagePath] of imagePathByUrl.entries()) {
+        try {
+          const { buffer } = await this._downloadFile(imageUrl)
+          imageEntries.push({
+            path: imagePath,
+            data: buffer,
+          })
+        } catch (error) {
+          skippedImages += 1
+          logger.warn('Skipping asset export image download', {
+            imageUrl,
+            imagePath,
+            error: error.message,
+          })
+        }
       }
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const exportsDir = path.join(__dirname, '../public/exports')
-    await fs.mkdir(exportsDir, { recursive: true })
-    const fileName = `assets-export-${timestamp}.zip`
-    const publicPath = `/exports/${fileName}`
-    const zipEntries = [
-      {
-        path: `assets-data-${timestamp}.xlsx`,
-        data: workbookBuffer,
-      },
-      ...imageEntries,
-    ]
-    const buffer = createZipArchive(zipEntries)
-    await fs.writeFile(path.join(exportsDir, fileName), buffer)
-
     return {
-      fileName,
-      publicPath,
+      workbookBuffer,
+      imageEntries,
       assetCount: assets.length,
       worksheetCount: worksheets.length,
       imageCount: imageEntries.length,
+      skippedImages,
+    }
+  }
+
+  async _collectAssetImageExportManifest() {
+    const assets = await Asset.findAll({
+      attributes: ['asset_id', 'asset_tag', 'active_form_id'],
+      include: [
+        {
+          model: AssetFormValue,
+          as: 'formValues',
+          attributes: ['form_field_id', 'value'],
+          required: false,
+          include: [
+            {
+              model: FormFields,
+              as: 'field',
+              attributes: ['id', 'label', 'type'],
+              required: false,
+            },
+          ],
+        },
+        {
+          model: FormBuilder,
+          as: 'activeForm',
+          attributes: ['form_id', 'name'],
+          required: false,
+        },
+      ],
+      order: [['created_at', 'DESC']],
+    })
+
+    const imagePathByUrl = new Map()
+
+    for (const assetRecord of assets) {
+      const asset = assetRecord.get({ plain: true })
+      const formName = asset.activeForm?.name || 'Unassigned Assets'
+
+      for (const entry of asset.formValues || []) {
+        if (String(entry?.field?.type).toLowerCase() !== 'camera') {
+          continue
+        }
+
+        const rawValue = _parseResponseValue(entry.value)
+        const imageUrls = this._extractImageUrls(rawValue)
+
+        for (let index = 0; index < imageUrls.length; index += 1) {
+          const imageUrl = imageUrls[index]
+          if (!imagePathByUrl.has(imageUrl)) {
+            imagePathByUrl.set(imageUrl, {
+              imageUrl,
+              imagePath: this._buildExportImagePath({
+                formName,
+                assetTag: asset.asset_tag,
+                imageIndex: index + 1,
+                imageUrl,
+              }),
+            })
+          }
+        }
+      }
+    }
+
+    return {
+      assetCount: assets.length,
+      imageTargets: Array.from(imagePathByUrl.values()),
+    }
+  }
+
+  async _downloadAssetImageEntries(
+    imageTargets,
+    { assetCount = 0, onProgress } = {},
+  ) {
+    const targets = Array.isArray(imageTargets) ? imageTargets : []
+    const imageEntries = []
+    let skippedImages = 0
+    let processedItems = 0
+    let currentIndex = 0
+    const concurrency = Math.max(
+      1,
+      Math.min(IMAGE_EXPORT_DOWNLOAD_CONCURRENCY, targets.length || 1),
+    )
+
+    const reportProgress = async () => {
+      if (typeof onProgress !== 'function') {
+        return
+      }
+
+      const progress = targets.length
+        ? Math.min(
+            100,
+            Math.round((processedItems / Math.max(targets.length, 1)) * 100),
+          )
+        : 100
+
+      await onProgress({
+        progress,
+        totalItems: targets.length,
+        processedItems,
+        assetCount,
+        imageCount: imageEntries.length,
+        skippedImages,
+      })
+    }
+
+    const worker = async () => {
+      while (currentIndex < targets.length) {
+        const target = targets[currentIndex]
+        currentIndex += 1
+
+        try {
+          const { buffer } = await this._downloadFile(target.imageUrl)
+          imageEntries.push({
+            path: target.imagePath,
+            data: buffer,
+          })
+        } catch (error) {
+          skippedImages += 1
+          logger.warn('Skipping asset export image download', {
+            imageUrl: target.imageUrl,
+            imagePath: target.imagePath,
+            error: error.message,
+          })
+        } finally {
+          processedItems += 1
+          await reportProgress()
+        }
+      }
+    }
+
+    await Promise.all(Array.from({ length: concurrency }, () => worker()))
+
+    return {
+      imageEntries,
       skippedImages,
     }
   }

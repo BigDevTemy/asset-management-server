@@ -477,6 +477,10 @@ router.get('/:id/barcode', authMiddleware.authenticate, assetsController.getBarc
 router.get('/', authMiddleware.authenticate, assetsController.list);
 
 router.get('/export', authMiddleware.authenticate, assetsController.exportAssets);
+router.get('/export/excel', authMiddleware.authenticate, assetsController.exportAssetsExcel);
+router.get('/export/images', authMiddleware.authenticate, assetsController.exportAssetImages);
+router.post('/export/images', authMiddleware.authenticate, assetsController.exportAssetImages);
+router.get('/export/images/:jobId', authMiddleware.authenticate, assetsController.getAssetImageExportJob);
 
 /**
  * @swagger

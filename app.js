@@ -31,6 +31,7 @@ const { swaggerSpec, swaggerUi } = require('./config/swagger');
 
 // Import batch jobs
 const { initializeBatchJobs, stopBatchJobs } = require('./batches');
+const assetExportJobService = require('./services/assetExportJobService')
 
 var app = express();
 
@@ -141,6 +142,13 @@ try {
 } catch (error) {
   logger.error('Failed to initialize batch jobs:', error.message);
 }
+
+assetExportJobService.resumePendingJobs().catch((error) => {
+  logger.error('Failed to resume asset export jobs', {
+    message: error.message,
+    stack: error.stack,
+  })
+})
 
 // Graceful shutdown handling for batch jobs
 process.on('SIGINT', () => {
