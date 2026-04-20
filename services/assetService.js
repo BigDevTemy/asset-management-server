@@ -312,7 +312,44 @@ class AssetService {
       normalizedParams,
       additionalOptions,
     )
-    return this._withFlatFields(result)
+
+    const {
+      page,
+      limit,
+      search,
+      sortBy,
+      sortOrder,
+      ...filters
+    } = normalizedParams
+
+    const summaryWhere = {
+      ...this.crudService._buildWhereClause(filters, search),
+      ...(additionalOptions.where || {}),
+    }
+
+    const [totalApproved, totalPending] = await Promise.all([
+      Asset.count({
+        where: {
+          ...summaryWhere,
+          approval_status: 'APPROVED',
+        },
+      }),
+      Asset.count({
+        where: {
+          ...summaryWhere,
+          approval_status: 'PENDING',
+        },
+      }),
+    ])
+
+    return this._withFlatFields({
+      ...result,
+      summary: {
+        totalCaptured: result.pagination?.totalItems || 0,
+        totalApproved,
+        totalPending,
+      },
+    })
   }
 
   /**

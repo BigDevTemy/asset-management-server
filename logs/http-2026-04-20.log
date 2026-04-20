@@ -57,3 +57,7 @@
 {"ip":"::1","level":"info","message":"Asset images export job request","timestamp":"2026-04-20 15:48:52:4852","userId":7}
 {"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"63ms","statusCode":202,"timestamp":"2026-04-20 15:48:52:4852","url":"/api/assets/export/images"}
 {"level":"http","message":"::1 - - [20/Apr/2026:14:48:52 +0000] \"GET /api/assets/export/images HTTP/1.1\" 202 219 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-20 15:48:52:4852"}
+{"ip":"::1","level":"http","message":"Incoming Request","method":"GET","timestamp":"2026-04-20 17:13:40:1340","url":"/api/assets/export/images","userAgent":"PostmanRuntime/7.53.0","userId":null}
+{"ip":"::1","level":"info","message":"Asset images export job request","timestamp":"2026-04-20 17:13:40:1340","userId":7}
+{"ip":"::1","level":"http","message":"HTTP Request","method":"GET","responseTime":"65ms","statusCode":202,"timestamp":"2026-04-20 17:13:40:1340","url":"/api/assets/export/images"}
+{"level":"http","message":"::1 - - [20/Apr/2026:16:13:40 +0000] \"GET /api/assets/export/images HTTP/1.1\" 202 219 \"-\" \"PostmanRuntime/7.53.0\"","timestamp":"2026-04-20 17:13:40:1340"}
