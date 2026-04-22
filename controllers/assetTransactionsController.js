@@ -52,9 +52,9 @@ const list = async (req, res) => {
     if (search) {
       where[Op.or] = [
         // Search in asset-related fields
-        { '$asset.name$': { [Op.like]: `%${search}%` } },
         { '$asset.asset_tag$': { [Op.like]: `%${search}%` } },
-        { '$asset.serial_number$': { [Op.like]: `%${search}%` } },
+        { '$asset.asset_location$': { [Op.like]: `%${search}%` } },
+        { '$asset.notes$': { [Op.like]: `%${search}%` } },
         // Search in requester fields
         { '$requester.full_name$': { [Op.like]: `%${search}%` } },
         { '$requester.email$': { [Op.like]: `%${search}%` } },
@@ -77,7 +77,7 @@ const list = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,
@@ -268,7 +268,7 @@ const create = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number']
+          attributes: ['asset_id', 'asset_tag', 'asset_location']
         },
         {
           model: User,
@@ -367,7 +367,7 @@ const update = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number']
+          attributes: ['asset_id', 'asset_tag', 'asset_location']
         },
         {
           model: User,
@@ -527,7 +527,7 @@ const changeStatus = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,
@@ -590,7 +590,7 @@ const getByUser = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,
@@ -642,7 +642,7 @@ const getByAsset = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,
@@ -871,7 +871,7 @@ const acceptTransaction = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,
@@ -1000,7 +1000,7 @@ const rejectTransaction = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,
@@ -1093,7 +1093,7 @@ const completeTransaction = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,
@@ -1137,7 +1137,7 @@ const getPendingTransactions = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_id', 'asset_tag', 'name', 'serial_number', 'status', 'barcode']
+          attributes: ['asset_id', 'asset_tag', 'asset_location', 'status', 'barcode']
         },
         {
           model: User,

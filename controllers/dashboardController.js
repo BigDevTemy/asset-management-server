@@ -238,7 +238,7 @@ const getAdminStats = async (req, res) => {
         {
           model: Asset,
           as: 'asset',
-          attributes: ['asset_tag', 'name']
+          attributes: ['asset_tag']
         }
       ]
     });
@@ -264,7 +264,7 @@ const getAdminStats = async (req, res) => {
         title: log.title,
         performed_date: log.performed_date,
         asset_tag: log.asset?.asset_tag,
-        asset_name: log.asset?.name
+        asset_name: log.asset?.asset_tag
       }))
     };
 

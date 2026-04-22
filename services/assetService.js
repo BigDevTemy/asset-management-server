@@ -2547,9 +2547,9 @@ class AssetService {
       lines.push(`NAME: ${asset.name}`)
     }
 
-    if (asset?.status) {
-      lines.push(`STATUS: ${asset.status}`)
-    }
+    // if (asset?.status) {
+    //   lines.push(`STATUS: ${asset.status}`)
+    // }
 
     if (!formId) {
       return lines.join('\n\n')
