@@ -1585,7 +1585,15 @@ class AssetService {
       columnName === 'asset_tag_group' ? 'asset_tag_group' : 'asset_tag'
 
     const safePrefix = prefix || ''
-    const pattern = safePrefix ? `${safePrefix}${separator}%` : `%`
+    const assetTagScope =
+      column === 'asset_tag'
+        ? this._getAssetTagSequenceScope(safePrefix, separator)
+        : null
+    const pattern = assetTagScope
+      ? `%${assetTagScope.searchToken}%`
+      : safePrefix
+        ? `${safePrefix}${separator}%`
+        : `%`
 
     const [rows] = await Asset.sequelize.query(
       `
@@ -1602,6 +1610,25 @@ class AssetService {
     const maxSeq = rows
       .map((r) => {
         const tag = String(r[column] || '')
+        if (assetTagScope) {
+          const tagParts = this._splitTagParts(tag, separator)
+          const sequenceIndex = tagParts.length - 1
+          const tagScope = tagParts.slice(
+            sequenceIndex - assetTagScope.parts.length,
+            sequenceIndex,
+          )
+          const matchesScope = assetTagScope.parts.every(
+            (part, index) => tagScope[index] === part,
+          )
+
+          if (!matchesScope) return null
+
+          const sequencePart = tagParts[sequenceIndex]
+          return /^\d+$/.test(sequencePart)
+            ? parseInt(sequencePart, 10)
+            : null
+        }
+
         if (!tag.startsWith(prefixWithSep)) return null
         const remainder = tag.slice(prefixWithSep.length)
         const match = remainder.match(/^(\d+)/)
@@ -1611,6 +1638,30 @@ class AssetService {
       .reduce((a, b) => Math.max(a, b), start - 1)
 
     return maxSeq + 1
+  }
+
+  _getAssetTagSequenceScope(prefix, separator) {
+    const parts = this._splitTagParts(prefix, separator)
+
+    // For tags like xx-xx-xx-xx-CE-APPLICATIONSERVERS-001, the sequence
+    // should follow CE-APPLICATIONSERVERS instead of the full location prefix.
+    if (parts.length < 6) return null
+
+    const scopedParts = parts.slice(-2)
+    return {
+      parts: scopedParts,
+      searchToken: `${scopedParts.join(separator)}${separator}`,
+    }
+  }
+
+  _splitTagParts(value, separator) {
+    if (!value) return []
+    const safeSeparator =
+      typeof separator === 'string' && separator.length ? separator : '-'
+
+    return String(value)
+      .split(safeSeparator)
+      .filter((part) => part !== '')
   }
 
   /**
