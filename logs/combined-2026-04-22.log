@@ -1,2 +1,3 @@
 {"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-22 11:02:09:29"}
 {"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-22 11:02:48:248"}
+{"level":"info","message":"Received SIGINT, shutting down batch jobs...","timestamp":"2026-04-22 11:08:10:810"}
