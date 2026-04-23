@@ -50,3 +50,10 @@
 {"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:39:07:397","userId":7}
 {"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:39:07:397","userId":7}
 {"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:39:07:397","userId":7}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-23 15:42:54:4254"}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:44:49:4449","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:44:49:4449","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:44:49:4449","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:44:58:4458","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:44:59:4459","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:44:59:4459","userId":7}
