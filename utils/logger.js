@@ -22,6 +22,12 @@ const logColors = {
 // Add colors to winston
 winston.addColors(logColors);
 
+const onlyLevel = (level) =>
+    winston.format((info) => (info.level === level ? info : false))();
+
+const excludeLevel = (level) =>
+    winston.format((info) => (info.level !== level ? info : false))();
+
 // Define log format
 const logFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
@@ -39,7 +45,7 @@ const fileFormat = winston.format.combine(
 );
 
 // Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, '../logs');
+const logsDir = path.join(__dirname, '../log');
 
 // Define transports
 const transports = [
@@ -64,7 +70,10 @@ const transports = [
     new DailyRotateFile({
         filename: path.join(logsDir, 'combined-%DATE%.log'),
         datePattern: 'YYYY-MM-DD',
-        format: fileFormat,
+        format: winston.format.combine(
+            excludeLevel('http'),
+            fileFormat
+        ),
         maxSize: '20m',
         maxFiles: '14d',
         zippedArchive: true,
@@ -75,7 +84,10 @@ const transports = [
         filename: path.join(logsDir, 'http-%DATE%.log'),
         datePattern: 'YYYY-MM-DD',
         level: 'http',
-        format: fileFormat,
+        format: winston.format.combine(
+            onlyLevel('http'),
+            fileFormat
+        ),
         maxSize: '20m',
         maxFiles: '7d',
         zippedArchive: true,
@@ -102,12 +114,16 @@ logger.stream = {
 // Add request logging method
 logger.logRequest = (req, res, responseTime) => {
     const logData = {
+        requestId: req.requestId || null,
         method: req.method || null,
         url: req.originalUrl || null,
         statusCode: res?.statusCode || null,
         responseTime: `${responseTime}ms`,
         ip: req?.ip || req?.connection?.remoteAddress || null,
-        userId: req?.user ? req.user.id : null,
+        userAgent: req?.get ? req.get('User-Agent') : null,
+        referrer: req?.get ? req.get('Referer') || req.get('Referrer') : null,
+        contentLength: res?.getHeader ? res.getHeader('content-length') || null : null,
+        userId: req?.user ? req.user.user_id || req.user.id : null,
     };
 
     if (res?.statusCode >= 400) {

@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const requestLogService = require('../services/requestLogService');
 
 /**
  * Request logging middleware
@@ -7,27 +8,10 @@ const logger = require('../utils/logger');
 const requestLogger = (req, res, next) => {
   const startTime = Date.now();
 
-  // Log the incoming request
-  logger.http('Incoming Request', {
-    method: req.method,
-    url: req.originalUrl,
-    ip: req.ip || req.connection.remoteAddress,
-    userAgent: req.get('User-Agent'),
-    userId: req.user ? req.user.id : null,
-    timestamp: new Date().toISOString(),
-  });
-
-  // Override res.end to capture response details
-  const originalEnd = res.end;
-  res.end = function(chunk, encoding) {
+  res.on('finish', () => {
     const responseTime = Date.now() - startTime;
-    
-    // Log the response
     logger.logRequest(req, res, responseTime);
-    
-    // Call the original end method
-    originalEnd.call(this, chunk, encoding);
-  };
+  });
 
   next();
 };
@@ -37,12 +21,16 @@ const requestLogger = (req, res, next) => {
  * Logs errors that occur during request processing
  */
 const errorLogger = (err, req, res, next) => {
+  res.locals.requestLogError = {
+    message: err.message,
+  };
+
   logger.logError(err, {
     method: req.method,
     url: req.originalUrl,
     ip: req.ip || req.connection.remoteAddress,
     userAgent: req.get('User-Agent'),
-    userId: req.user ? req.user.id : null,
+    userId: requestLogService.getUserId(req),
     body: req.body,
     query: req.query,
     params: req.params,
@@ -64,7 +52,7 @@ const authLogger = (req, res, next) => {
       const isSuccess = res.statusCode < 400;
       const action = req.originalUrl.split('/').pop();
       
-      logger.logAuth(action, req.body?.email || req.user?.id, isSuccess, {
+      logger.logAuth(action, req.body?.email || requestLogService.getUserId(req), isSuccess, {
         method: req.method,
         ip: req.ip || req.connection.remoteAddress,
         userAgent: req.get('User-Agent'),

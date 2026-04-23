@@ -1,0 +1,52 @@
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-23 14:58:44:5844"}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 14:58:59:5859","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 14:58:59:5859","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 14:58:59:5859","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"endDate":"2026-04-23","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-23 14:58:59:5859","userId":7}
+{"count":2,"level":"info","message":"Assets list successful","timestamp":"2026-04-23 14:58:59:5859","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-23","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-23 14:58:59:5859","userId":7}
+{"count":2,"level":"info","message":"Assets list successful","timestamp":"2026-04-23 14:58:59:5859","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:05:11:511","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:05:11:511","userId":7}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-23 15:06:38:638"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-23 15:07:17:717"}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:09:07:97","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"endDate":"2026-04-23","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-23 15:09:07:97","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-23","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-23 15:09:08:98","userId":7}
+{"count":2,"level":"info","message":"Assets list successful","timestamp":"2026-04-23 15:09:08:98","total":0,"userId":7}
+{"count":2,"level":"info","message":"Assets list successful","timestamp":"2026-04-23 15:09:08:98","total":0,"userId":7}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-23 15:12:42:1242"}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:13:06:136","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:13:06:136","userId":7}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-23 15:16:00:160"}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:20:06:206","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:20:06:206","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:23:32:2332","userId":7}
+{"ip":"::1","level":"info","message":"Admin dashboard stats request","timestamp":"2026-04-23 15:23:32:2332","userId":7,"userRole":"admin"}
+{"level":"info","message":"Admin dashboard stats retrieved successfully","stats":{"activeUsers":6,"approvedRequests":4,"assignedAssets":0,"availableAssets":4,"inactiveUsers":0,"overdueMaintenance":1,"pendingRequests":0,"recentMaintenanceLogs":[],"rejectedRequests":0,"totalAssets":4,"totalDepartments":0,"totalDocuments":0,"totalRequests":4,"totalSchedules":1,"totalUsers":6,"upcomingMaintenance":0},"timestamp":"2026-04-23 15:23:32:2332","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:24:35:2435","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:24:35:2435","userId":7}
+{"ip":"::1","level":"info","message":"Admin dashboard stats request","timestamp":"2026-04-23 15:24:35:2435","userId":7,"userRole":"admin"}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:24:36:2436","userId":7}
+{"level":"info","message":"Admin dashboard stats retrieved successfully","stats":{"activeUsers":6,"approvedRequests":4,"assignedAssets":0,"availableAssets":4,"inactiveUsers":0,"overdueMaintenance":1,"pendingRequests":0,"recentMaintenanceLogs":[],"rejectedRequests":0,"totalAssets":4,"totalDepartments":0,"totalDocuments":0,"totalRequests":4,"totalSchedules":1,"totalUsers":6,"upcomingMaintenance":0},"timestamp":"2026-04-23 15:24:36:2436","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"endDate":"2026-04-23","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-23 15:24:41:2441","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-23","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-23 15:24:41:2441","userId":7}
+{"count":2,"level":"info","message":"Assets list successful","timestamp":"2026-04-23 15:24:41:2441","total":0,"userId":7}
+{"count":2,"level":"info","message":"Assets list successful","timestamp":"2026-04-23 15:24:42:2442","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:30:30:3030","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:30:30:3030","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:31:02:312","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:31:02:312","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:31:02:312","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:32:48:3248","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:32:48:3248","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:32:48:3248","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:32:54:3254","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:32:55:3255","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:32:55:3255","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:37:54:3754","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:37:54:3754","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:37:54:3754","userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-23 15:39:07:397","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-23 15:39:07:397","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-23 15:39:07:397","userId":7}

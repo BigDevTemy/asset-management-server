@@ -2,9 +2,9 @@ var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
-var morgan = require('morgan');
 const logger = require('./utils/logger');
 const { requestLogger, errorLogger, authLogger } = require('./middleware/requestLogger');
+const { requestMonitor } = require('./middleware/requestMonitor');
 
 // Import security middleware
 const {
@@ -61,9 +61,7 @@ app.set('view engine', 'ejs');
 // Winston logging middleware
 app.use(requestLogger);
 app.use(authLogger);
-
-// Morgan HTTP logging (streams to Winston)
-app.use(morgan('combined', { stream: logger.stream }));
+app.use(requestMonitor);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));

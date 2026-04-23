@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\log\\.11ac689dca51ccb8b957a4c21ac90780f442cfb2-audit.json",
+    "files": [
+        {
+            "date": 1776952721045,
+            "name": "C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\log\\error-2026-04-23.log",
+            "hash": "c54611672d7c8ef426479f1089a4c1a74e2899350bb00d15e60d337c64358cd7"
+        }
+    ],
+    "hashType": "sha256"
+}

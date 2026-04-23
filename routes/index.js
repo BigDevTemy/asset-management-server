@@ -21,6 +21,7 @@ const assetCategoryClassesRoutes = require("./assetCategoryClasses");
 const buildingsRoutes = require("./buildings");
 const floorsRoutes = require("./floors");
 const roomsRoutes = require("./rooms");
+const requestLogsRoutes = require("./requestLogs");
 const { apiLimiter } = require("../middleware/securityMiddleware");
 
 // Mount route modules
@@ -47,5 +48,6 @@ router.use("/api/asset-category-classes", apiLimiter, assetCategoryClassesRoutes
 router.use("/api/buildings", apiLimiter, buildingsRoutes);
 router.use("/api/floors", apiLimiter, floorsRoutes);
 router.use("/api/rooms", apiLimiter, roomsRoutes);
+router.use("/api/request-logs", apiLimiter, requestLogsRoutes);
 
 module.exports = router;
