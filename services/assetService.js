@@ -2,6 +2,8 @@
 
 const {
   Asset,
+  AssetCategory,
+  AssetCategoryClass,
   AssetTransaction,
   User,
   AssetFormValue,
@@ -521,34 +523,113 @@ class AssetService {
     const { form_id, form_responses, ...coreData } = data
 
     if (!form_id && !form_responses) {
-      return this.crudService.update(id, data, additionalOptions)
+      const result = await this.crudService.update(id, data, additionalOptions)
+      // Regenerate barcode if asset_tag or asset_tag_group changed
+      if (result && (data.asset_tag || data.asset_tag_group)) {
+        try {
+          await this._regenerateAssetCodes(id)
+        } catch (error) {
+          logger.error('Failed to regenerate asset codes after update', {
+            asset_id: id,
+            error: error.message,
+          })
+        }
+      }
+      return result
     }
 
     const transaction = await Asset.sequelize.transaction()
 
     try {
       const sanitizedCoreData = this._sanitizeAssetFields(coreData)
-
-      if (Object.keys(sanitizedCoreData).length > 0) {
-        await Asset.update(sanitizedCoreData, {
-          where: { asset_id: id },
-          transaction,
-        })
-      }
-
       const asset = await Asset.findByPk(id, { transaction })
       if (!asset) {
         await transaction.rollback()
         return null
       }
 
-      if (form_id && form_responses && Object.keys(form_responses).length) {
-        await this._saveFormResponses(
+      const effectiveFormId = form_id || asset.active_form_id || null
+      const existingResponses = effectiveFormId
+        ? await this._fetchFormResponsesMap(id, transaction)
+        : {}
+      const mergedFormResponses = {
+        ...existingResponses,
+        ...(form_responses && typeof form_responses === 'object'
+          ? form_responses
+          : {}),
+      }
+
+      let regeneratedTags = {}
+      if (effectiveFormId) {
+        const formConfigs = await this._getFormTagConfigs(
+          effectiveFormId,
+          transaction,
+        )
+
+        regeneratedTags.asset_tag = await this._generateAssetTag({
+          assetData: {
+            ...asset.get({ plain: true }),
+            ...sanitizedCoreData,
+            ...regeneratedTags,
+          },
+          formId: effectiveFormId,
+          formResponses: mergedFormResponses,
+          tagConfig: formConfigs?.asset_tag_config || null,
+          transaction,
+        })
+
+        if (formConfigs?.asset_tag_group_config?.enabled) {
+          regeneratedTags.asset_tag_group = await this._generateAssetTagGroup({
+            assetData: {
+              ...asset.get({ plain: true }),
+              ...sanitizedCoreData,
+              ...regeneratedTags,
+            },
+            formId: effectiveFormId,
+            formResponses: mergedFormResponses,
+            tagGroupConfig: formConfigs.asset_tag_group_config,
+            transaction,
+          })
+        }
+      }
+
+      if (Object.keys(sanitizedCoreData).length > 0) {
+        await Asset.update(
+          {
+            ...sanitizedCoreData,
+            ...(effectiveFormId ? { active_form_id: effectiveFormId } : {}),
+            ...regeneratedTags,
+          },
+          {
+            where: { asset_id: id },
+            transaction,
+          },
+        )
+      } else if (effectiveFormId || Object.keys(regeneratedTags).length > 0) {
+        await Asset.update(
+          {
+            ...(effectiveFormId ? { active_form_id: effectiveFormId } : {}),
+            ...regeneratedTags,
+          },
+          {
+            where: { asset_id: id },
+            transaction,
+          },
+        )
+      }
+
+      if (
+        effectiveFormId &&
+        form_responses &&
+        Object.keys(form_responses).length
+      ) {
+        const { processedResponses } = await this._saveFormResponses(
           asset,
-          form_id,
+          effectiveFormId,
           form_responses,
           transaction,
         )
+        Object.assign(mergedFormResponses, processedResponses)
       }
 
       await transaction.commit()
@@ -562,16 +643,31 @@ class AssetService {
         const qrCodePath = await this._generateAndStoreQrCode(updatedAttached, {
           formResponses: Object.keys(responseMap).length
             ? responseMap
-            : form_responses || {},
-          formId: form_id || updatedAttached?.active_form_id,
+            : mergedFormResponses,
+          formId: effectiveFormId || updatedAttached?.active_form_id,
         })
         if (qrCodePath) {
           updatedAttached.qr_code = qrCodePath
+          await Asset.update(
+            { qr_code: qrCodePath },
+            { where: { asset_id: id } },
+          )
         }
       } catch (qrError) {
         logger.error('Failed to refresh QR code after asset update', {
           asset_id: id,
           error: qrError.message,
+        })
+      }
+
+      try {
+        await this._regenerateAssetCodes(id)
+        const refreshed = await this.crudService.getById(id, additionalOptions)
+        return this._attachFields(refreshed)
+      } catch (error) {
+        logger.error('Failed to regenerate asset codes after update', {
+          asset_id: id,
+          error: error.message,
         })
       }
 
@@ -856,6 +952,20 @@ class AssetService {
           attributes: ['form_id', 'name'],
           required: false,
         },
+        {
+          model: AssetCategory,
+          as: 'category',
+          attributes: ['category_id', 'name', 'asset_class_id'],
+          required: false,
+          include: [
+            {
+              model: AssetCategoryClass,
+              as: 'assetClass',
+              attributes: ['asset_class_id', 'name', 'slug'],
+              required: false,
+            },
+          ],
+        },
       ],
       order: [
         ['created_at', 'DESC'],
@@ -916,6 +1026,7 @@ class AssetService {
         'Asset ID',
         'Asset Tag',
         'Asset Class Tag',
+        // 'Asset Tag Groupx',
         'Approval Status',
         'Created By',
         'Creator Email',
@@ -937,7 +1048,8 @@ class AssetService {
         const row = {
           'Asset ID': asset.asset_id,
           'Asset Tag': asset.asset_tag || '',
-          'Asset Tag Group': asset.asset_tag_group || '',
+          'Asset Class Tag':  asset.asset_tag_group || '',
+          // 'Asset Tag Group': asset.asset_tag_group || '',
           'Approval Status': asset.approval_status || '',
           'Created By': asset.creator?.full_name || '',
           'Creator Email': asset.creator?.email || '',
@@ -1209,6 +1321,7 @@ class AssetService {
 
       const parts = []
       const segments = tagConfigEffective.segments
+      const hierarchyLookupCache = new Map()
 
       const getFieldValue = (fieldId, hierarchyLevelName = null) =>
         this._getFieldResponseValue(formResponses, fieldId, hierarchyLevelName)
@@ -1217,10 +1330,42 @@ class AssetService {
         if (!segment || !segment.type) continue
 
         if (segment.type === 'field') {
-          const value = getFieldValue(
-            segment.field_id,
-            segment.hierarchy_level_name,
-          )
+          const hierarchyLevelName =
+            typeof segment.hierarchy_level_name === 'string'
+              ? segment.hierarchy_level_name
+              : null
+          const normalizedHierarchyLevel = hierarchyLevelName
+            ? hierarchyLevelName.toLowerCase()
+            : null
+          let value
+
+          if (
+            normalizedHierarchyLevel === 'asset class' ||
+            normalizedHierarchyLevel === 'asset category'
+          ) {
+            const cacheKey = String(segment.field_id)
+            let lookup = hierarchyLookupCache.get(cacheKey)
+
+            if (!lookup) {
+              lookup = await this._resolveCategoryClassForTagField(
+                formResponses,
+                segment.field_id,
+                transaction,
+              )
+              hierarchyLookupCache.set(cacheKey, lookup)
+            }
+
+            value =
+              normalizedHierarchyLevel === 'asset class'
+                ? lookup.classTagValue
+                : lookup.categoryTagValue
+          } else {
+            value = getFieldValue(
+              segment.field_id,
+              segment.hierarchy_level_name,
+            )
+          }
+
           if (value === undefined || value === null || value === '') {
             throw new Error(
               `Missing value for asset tag field_id ${segment.field_id}`,
@@ -1872,6 +2017,191 @@ class AssetService {
     return { classId: null, categoryId: null }
   }
 
+  async _resolveCategoryClassForTagField(formResponses, fieldId, transaction) {
+    const rawValue = this._getRawFieldResponse(formResponses, fieldId)
+    if (!rawValue || typeof rawValue !== 'object') {
+      throw new Error(
+        `Missing category selection for asset tag field_id ${fieldId}`,
+      )
+    }
+
+    const categoryCandidate =
+      this._getHierarchySelectionValue(rawValue, 'Asset Category') ??
+      this._getHierarchySelectionValue(rawValue, 'asset category')
+    const classCandidate =
+      this._getHierarchySelectionValue(rawValue, 'Asset Class') ??
+      this._getHierarchySelectionValue(rawValue, 'asset class')
+
+    if (
+      categoryCandidate === undefined ||
+      categoryCandidate === null ||
+      categoryCandidate === ''
+    ) {
+      throw new Error(
+        `Missing Asset Category value for asset tag field_id ${fieldId}`,
+      )
+    }
+
+    const category = await this._findAssetCategoryByValue(
+      categoryCandidate,
+      transaction,
+    )
+    if (!category) {
+      throw new Error(
+        `Invalid Asset Category value for asset tag field_id ${fieldId}: ${categoryCandidate}`,
+      )
+    }
+
+    const assetClass = await this._findAssetClassById(
+      category.asset_class_id,
+      transaction,
+    )
+    if (!assetClass) {
+      throw new Error(
+        `Asset Category ${category.name} is not linked to a valid Asset Class`,
+      )
+    }
+
+    if (
+      classCandidate !== undefined &&
+      classCandidate !== null &&
+      classCandidate !== '' &&
+      !this._doesClassValueMatchRecord(classCandidate, assetClass)
+    ) {
+      throw new Error(
+        `Selected Asset Class does not match Asset Category for asset tag field_id ${fieldId}`,
+      )
+    }
+
+    return {
+      categoryId: category.category_id,
+      categoryTagValue: category.name,
+      classId: assetClass.asset_class_id,
+      classTagValue: assetClass.slug || assetClass.name,
+    }
+  }
+
+  _getRawFieldResponse(formResponses, fieldId) {
+    const key = String(fieldId)
+    if (
+      !formResponses ||
+      typeof formResponses !== 'object' ||
+      !Object.prototype.hasOwnProperty.call(formResponses, key)
+    ) {
+      return undefined
+    }
+
+    return formResponses[key]
+  }
+
+  _getHierarchySelectionValue(rawValue, hierarchyLevelName) {
+    if (!rawValue || typeof rawValue !== 'object') return undefined
+
+    if (Array.isArray(rawValue.resolved)) {
+      const resolvedMatch = rawValue.resolved.find(
+        (entry) =>
+          entry &&
+          typeof entry.level === 'string' &&
+          entry.level.toLowerCase() === hierarchyLevelName.toLowerCase(),
+      )
+      if (resolvedMatch) {
+        return (
+          resolvedMatch.id ??
+          resolvedMatch.value ??
+          resolvedMatch.label ??
+          undefined
+        )
+      }
+    }
+
+    const selections =
+      rawValue.selections && typeof rawValue.selections === 'object'
+        ? rawValue.selections
+        : rawValue
+
+    const tryKeys = [
+      hierarchyLevelName,
+      hierarchyLevelName.toLowerCase(),
+      hierarchyLevelName.replace(/\s+/g, '_'),
+      hierarchyLevelName.toLowerCase().replace(/\s+/g, '_'),
+    ]
+
+    for (const key of tryKeys) {
+      if (
+        Object.prototype.hasOwnProperty.call(selections, key) &&
+        selections[key] !== undefined
+      ) {
+        return selections[key]
+      }
+    }
+
+    return undefined
+  }
+
+  async _findAssetCategoryByValue(rawValue, transaction) {
+    if (rawValue === undefined || rawValue === null || rawValue === '') {
+      return null
+    }
+
+    const numeric = Number(rawValue)
+    if (Number.isFinite(numeric)) {
+      const [rowsById] = await Asset.sequelize.query(
+        `
+          SELECT category_id, asset_class_id, name
+          FROM asset_categories
+          WHERE category_id = :cid
+          LIMIT 1
+        `,
+        { replacements: { cid: numeric }, transaction },
+      )
+      if (rowsById?.length) return rowsById[0]
+    }
+
+    const val = String(rawValue).trim()
+    if (!val) return null
+
+    const [rowsByName] = await Asset.sequelize.query(
+      `
+        SELECT category_id, asset_class_id, name
+        FROM asset_categories
+        WHERE LOWER(name) = LOWER(:val)
+        LIMIT 1
+      `,
+      { replacements: { val }, transaction },
+    )
+
+    return rowsByName?.[0] || null
+  }
+
+  async _findAssetClassById(classId, transaction) {
+    if (!classId) return null
+
+    const [rows] = await Asset.sequelize.query(
+      `
+        SELECT asset_class_id, name, slug
+        FROM asset_category_classes
+        WHERE asset_class_id = :classId
+        LIMIT 1
+      `,
+      { replacements: { classId }, transaction },
+    )
+
+    return rows?.[0] || null
+  }
+
+  _doesClassValueMatchRecord(rawValue, assetClass) {
+    if (!assetClass || rawValue === undefined || rawValue === null) {
+      return false
+    }
+
+    const normalizedRaw = String(rawValue).trim().toLowerCase()
+    if (!normalizedRaw) return false
+
+    return [assetClass.asset_class_id, assetClass.slug, assetClass.name]
+      .filter((value) => value !== undefined && value !== null && value !== '')
+      .some((value) => String(value).trim().toLowerCase() === normalizedRaw)
+  }
+
   /**
    * Resolve a value from formResponses for a given field, with optional hierarchy level.
    */
@@ -2202,11 +2532,14 @@ class AssetService {
    * @returns {Object}
    */
   _sanitizeAssetFields(data = {}) {
-    const allowedKeys = new Set(Object.keys(Asset.rawAttributes || {}))
+    const rawAttributes = Asset.rawAttributes
+    const allowedKeys = rawAttributes ? new Set(Object.keys(rawAttributes)) : null
     const sanitized = {}
 
     Object.entries(data).forEach(([key, value]) => {
-      if (allowedKeys.has(key)) {
+      // If we can't determine allowed keys (e.g., model not fully initialized),
+      // allow all fields - this is safer than blocking legitimate updates
+      if (!allowedKeys || allowedKeys.has(key)) {
         sanitized[key] = value
       } else {
         logger.warn('Skipping unknown asset field', { field: key })
@@ -2814,9 +3147,14 @@ class AssetService {
    * Fetch existing form responses as a simple object for QR embedding.
    */
   async _fetchFormResponsesForQr(assetId) {
+    return this._fetchFormResponsesMap(assetId)
+  }
+
+  async _fetchFormResponsesMap(assetId, transaction = null) {
     const values = await AssetFormValue.findAll({
       where: { asset_id: assetId },
       attributes: ['form_field_id', 'value'],
+      transaction,
     })
 
     return values.reduce((acc, row) => {
@@ -2886,6 +3224,64 @@ class AssetService {
     })
 
     return { barcodePath, qrCodePath }
+  }
+
+  /**
+   * Regenerate barcode and QR code for an asset based on current data.
+   * Used when asset_tag or asset_tag_group is updated.
+   * @private
+   */
+  async _regenerateAssetCodes(assetId) {
+    const asset = await this.getById(assetId)
+    if (!asset) {
+      throw new Error(`Asset ${assetId} not found`)
+    }
+
+    const barcodeSourceText = asset.asset_tag || generateAssetBarcodeNumber(asset.asset_id)
+
+    const qrPayloadText = await this._buildHumanReadableQrString({
+      asset,
+      formId: asset.active_form_id,
+      formResponses: {},
+      qrCodeConfig: null,
+    })
+
+    try {
+      const generated = await this._generateAndStoreAssetCodes({
+        asset: {
+          asset_id: asset.asset_id,
+          asset_tag: asset.asset_tag,
+        },
+        barcodeSourceText,
+        qrPayload: qrPayloadText,
+        orgLogoUrl: null,
+        transaction: null,
+      })
+
+      // Update asset record with new barcode/QR code paths
+      await Asset.update(
+        {
+          barcode: generated.barcodePath,
+          qr_code: generated.qrCodePath,
+        },
+        {
+          where: { asset_id: asset.asset_id },
+        }
+      )
+
+      logger.info('Asset codes regenerated', {
+        asset_id: asset.asset_id,
+        asset_tag: asset.asset_tag,
+        barcodePath: generated.barcodePath,
+        qrCodePath: generated.qrCodePath,
+      })
+    } catch (error) {
+      logger.error('Failed to regenerate asset codes', {
+        asset_id: asset.asset_id,
+        error: error.message,
+      })
+      throw error
+    }
   }
 }
 

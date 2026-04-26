@@ -11,10 +11,10 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // Asset belongs to AssetCategory
-      // Asset.belongsTo(models.AssetCategory, {
-      //   foreignKey: 'category_id',
-      //   as: 'category'
-      // });
+      Asset.belongsTo(models.AssetCategory, {
+        foreignKey: 'category_id',
+        as: 'category',
+      })
 
       // Asset was captured with a specific dynamic form
       Asset.belongsTo(models.FormBuilder, {

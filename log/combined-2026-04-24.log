@@ -1,0 +1,188 @@
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 09:32:44:3244"}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-24 09:32:59:3259"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-24 09:32:59:3259"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-24 09:32:59:3259","userAgent":"PostmanRuntime/7.53.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 09:35:50:3550","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T08-35-50-311Z.xlsx","timestamp":"2026-04-24 09:35:50:3550","userId":7,"worksheetCount":2}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 09:38:15:3815"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 09:38:23:3823"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 09:38:35:3835"}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 09:38:59:3859","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T08-38-59-156Z.xlsx","timestamp":"2026-04-24 09:38:59:3859","userId":7,"worksheetCount":2}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 09:42:52:4252","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T08-42-52-142Z.xlsx","timestamp":"2026-04-24 09:42:52:4252","userId":7,"worksheetCount":2}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 09:43:48:4348"}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 09:43:49:4349","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T08-43-49-622Z.xlsx","timestamp":"2026-04-24 09:43:49:4349","userId":7,"worksheetCount":2}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:04:36:436"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:04:52:452"}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 10:04:58:458","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T09-04-58-806Z.xlsx","timestamp":"2026-04-24 10:04:58:458","userId":7,"worksheetCount":2}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:06:19:619"}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 10:06:39:639","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T09-06-39-357Z.xlsx","timestamp":"2026-04-24 10:06:39:639","userId":7,"worksheetCount":2}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:07:28:728"}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 10:07:36:736","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T09-07-36-339Z.xlsx","timestamp":"2026-04-24 10:07:36:736","userId":7,"worksheetCount":2}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:08:37:837"}
+{"ip":"::1","level":"info","message":"Asset Excel export request","timestamp":"2026-04-24 10:08:39:839","userId":7}
+{"assetCount":4,"level":"info","message":"Asset Excel export generated","publicPath":"/exports/assets-export-excel-2026-04-24T09-08-40-223Z.xlsx","timestamp":"2026-04-24 10:08:40:840","userId":7,"worksheetCount":2}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-24 10:10:40:1040"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-24 10:10:41:1041"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-24 10:10:41:1041","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0","userId":"admin@gmail.com"}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-04-24 10:10:43:1043","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{},"targetUserId":7,"timestamp":"2026-04-24 10:10:43:1043","userId":7}
+{"count":4,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-04-24 10:10:43:1043","total":0}
+{"ip":"::1","level":"info","message":"Organization logo get request (public)","timestamp":"2026-04-24 10:11:31:1131"}
+{"hasLogo":true,"level":"info","message":"Organization logo retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:11:31:1131"}
+{"assetData":{"form_id":16,"form_response_keys":["149","150","151","152","153","154","155","156","157","158","159","160","161"]},"ip":"::1","level":"info","message":"Asset creation request","timestamp":"2026-04-24 10:12:31:1231","userId":7}
+{"assetId":146,"count":13,"formId":16,"level":"info","message":"Asset form responses saved","timestamp":"2026-04-24 10:12:33:1233"}
+{"level":"info","message":"Barcode generated successfully","size":45780,"text":"ABJ-HQ-FL1-R4-CE-CABLEMANAGEMENTSYSTEMS-0001","timestamp":"2026-04-24 10:12:33:1233","type":"code128"}
+{"level":"info","message":"Barcode file saved successfully","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\codes\\asset_146_barcode.png","text":"ABJ-HQ-FL1-R4-CE-CABLEMANAGEMENTSYSTEMS-0001","timestamp":"2026-04-24 10:12:33:1233"}
+{"level":"info","message":"QR code file saved","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\codes\\asset_146_qrcode.png","timestamp":"2026-04-24 10:12:33:1233"}
+{"error":"Could not find MIME for Buffer <null>","level":"warn","message":"Failed to read organization logo for codesheet","timestamp":"2026-04-24 10:12:35:1235"}
+{"asset_id":146,"barcodePath":"/codes/asset_146_barcode.png","barcodeTextLength":44,"level":"info","message":"Asset codes generated","qrCodePath":"/codes/asset_146_qrcode.png","sheetPath":"/codes/asset_146_codes.png","timestamp":"2026-04-24 10:12:35:1235"}
+{"action":"assign","assetId":146,"assetTag":"ABJ-HQ-FL1-R4-CE-CABLEMANAGEMENTSYSTEMS-0001","assignedToCreator":7,"creatorName":"admin@gmail.com","level":"info","message":"Business Logic","timestamp":"2026-04-24 10:12:35:1235","transactionId":79,"userId":7}
+{"action":"asset_created","assetId":146,"assetTag":"ABJ-HQ-FL1-R4-CE-CABLEMANAGEMENTSYSTEMS-0001","level":"info","message":"Business Logic","timestamp":"2026-04-24 10:12:35:1235","userId":7}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-24 10:12:41:1241"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-24 10:12:41:1241"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-24 10:12:41:1241","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0","userId":"admin@gmail.com"}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-24 10:12:42:1242","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 10:12:42:1242","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:12:42:1242","userId":7}
+{"ip":"::1","level":"info","message":"Admin dashboard stats request","timestamp":"2026-04-24 10:12:42:1242","userId":7,"userRole":"admin"}
+{"level":"info","message":"Admin dashboard stats retrieved successfully","stats":{"activeUsers":6,"approvedRequests":5,"assignedAssets":0,"availableAssets":5,"inactiveUsers":0,"overdueMaintenance":1,"pendingRequests":0,"recentMaintenanceLogs":[],"rejectedRequests":0,"totalAssets":5,"totalDepartments":0,"totalDocuments":0,"totalRequests":5,"totalSchedules":1,"totalUsers":6,"upcomingMaintenance":0},"timestamp":"2026-04-24 10:12:43:1243","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-24 10:12:43:1243","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-24 10:12:44:1244","userId":7}
+{"count":3,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:12:44:1244","total":0,"userId":7}
+{"count":3,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:12:44:1244","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-24"},"timestamp":"2026-04-24 10:12:52:1252","userId":7}
+{"count":1,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:12:52:1252","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-24 10:13:07:137","userId":7}
+{"ip":"::1","level":"info","message":"Admin dashboard stats request","timestamp":"2026-04-24 10:13:07:137","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 10:13:08:138","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:13:08:138","userId":7}
+{"level":"info","message":"Admin dashboard stats retrieved successfully","stats":{"activeUsers":6,"approvedRequests":5,"assignedAssets":0,"availableAssets":5,"inactiveUsers":0,"overdueMaintenance":1,"pendingRequests":0,"recentMaintenanceLogs":[],"rejectedRequests":0,"totalAssets":5,"totalDepartments":0,"totalDocuments":0,"totalRequests":5,"totalSchedules":1,"totalUsers":6,"upcomingMaintenance":0},"timestamp":"2026-04-24 10:13:08:138","userId":7}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-04-24 10:13:18:1318","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{},"targetUserId":7,"timestamp":"2026-04-24 10:13:18:1318","userId":7}
+{"count":5,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-04-24 10:13:18:1318","total":0}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-04-24 10:13:32:1332","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{"end_date":"2026-04-24","start_date":"2026-04-24"},"targetUserId":7,"timestamp":"2026-04-24 10:13:32:1332","userId":7}
+{"count":1,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-04-24 10:13:32:1332","total":0}
+{"assetId":"146","ip":"::1","level":"info","message":"Asset update request","timestamp":"2026-04-24 10:13:49:1349","updateData":["form_id","form_responses","created_by","approval_status"],"userId":7}
+{"assetId":146,"count":13,"formId":16,"level":"info","message":"Asset form responses saved","timestamp":"2026-04-24 10:13:50:1350"}
+{"level":"info","message":"QR code file saved","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\qrcodes\\qrcode_146.png","timestamp":"2026-04-24 10:13:50:1350"}
+{"action":"asset_updated","assetId":"146","assetTag":"ABJ-HQ-FL1-R4-CE-CABLEMANAGEMENTSYSTEMS-0001","level":"info","message":"Business Logic","timestamp":"2026-04-24 10:13:50:1350","updatedFields":["form_id","form_responses","created_by","approval_status"],"userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-24 10:13:56:1356","userId":7}
+{"count":3,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:13:56:1356","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-24 10:13:56:1356","userId":7}
+{"count":3,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:13:56:1356","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 10:24:18:2418","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:24:18:2418","userId":7}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-24 10:25:28:2528"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-24 10:25:29:2529"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-24 10:25:29:2529","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":"admin@gmail.com"}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-04-24 10:25:32:2532","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{},"targetUserId":7,"timestamp":"2026-04-24 10:25:32:2532","userId":7}
+{"count":5,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-04-24 10:25:32:2532","total":0}
+{"assetId":"146","ip":"::1","level":"info","message":"Asset update request","timestamp":"2026-04-24 10:25:59:2559","updateData":["form_id","form_responses","created_by","approval_status"],"userId":7}
+{"assetId":146,"count":13,"formId":16,"level":"info","message":"Asset form responses saved","timestamp":"2026-04-24 10:26:01:261"}
+{"level":"info","message":"QR code file saved","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\qrcodes\\qrcode_146.png","timestamp":"2026-04-24 10:26:01:261"}
+{"action":"asset_updated","assetId":"146","assetTag":"ABJ-HQ-FL1-R4-CE-CABLEMANAGEMENTSYSTEMS-0001","level":"info","message":"Business Logic","timestamp":"2026-04-24 10:26:01:261","updatedFields":["form_id","form_responses","created_by","approval_status"],"userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 10:30:02:302","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:30:02:302","userId":7}
+{"contentLength":"81","ip":"::1","level":"warn","message":"HTTP Request","method":"GET","referrer":"http://localhost:5000/","requestId":"45ef70a4-3951-47dc-8962-cdf6dde12deb","responseTime":"6ms","statusCode":401,"timestamp":"2026-04-24 10:32:52:3252","url":"/api/permissions","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":null}
+{"contentLength":"81","ip":"::1","level":"warn","message":"HTTP Request","method":"GET","referrer":"http://localhost:5000/","requestId":"fd046ce4-299a-4d27-a4b0-6f3ce3046a2d","responseTime":"4ms","statusCode":401,"timestamp":"2026-04-24 10:32:52:3252","url":"/api/organization-settings","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":null}
+{"contentLength":"81","ip":"::1","level":"warn","message":"HTTP Request","method":"GET","referrer":"http://localhost:5000/","requestId":"33b38fb1-8006-483e-b4bf-8e00c43ec8fd","responseTime":"7ms","statusCode":401,"timestamp":"2026-04-24 10:32:52:3252","url":"/api/dashboard/admin-stats","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":null}
+{"contentLength":"81","ip":"::1","level":"warn","message":"HTTP Request","method":"GET","referrer":"http://localhost:5000/","requestId":"f856502f-624f-4726-a2e7-82f5826dfd30","responseTime":"14ms","statusCode":401,"timestamp":"2026-04-24 10:32:52:3252","url":"/api/asset-transactions?limit=10&sortBy=created_at&sortOrder=DESC","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":null}
+{"ip":"::1","level":"info","message":"Organization logo get request (public)","timestamp":"2026-04-24 10:32:53:3253"}
+{"hasLogo":true,"level":"info","message":"Organization logo retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:32:53:3253"}
+{"ip":"::1","level":"info","message":"Organization logo get request (public)","timestamp":"2026-04-24 10:32:55:3255"}
+{"hasLogo":true,"level":"info","message":"Organization logo retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:32:55:3255"}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-24 10:33:03:333"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-24 10:33:03:333"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-24 10:33:03:333","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":"admin@gmail.com"}
+{"ip":"::1","level":"info","message":"Permissions data request","timestamp":"2026-04-24 10:33:03:333","userId":7}
+{"ip":"::1","level":"info","message":"Admin dashboard stats request","timestamp":"2026-04-24 10:33:03:333","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 10:33:03:333","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:33:03:333","userId":7}
+{"level":"info","message":"Admin dashboard stats retrieved successfully","stats":{"activeUsers":6,"approvedRequests":5,"assignedAssets":0,"availableAssets":5,"inactiveUsers":0,"overdueMaintenance":1,"pendingRequests":0,"recentMaintenanceLogs":[],"rejectedRequests":0,"totalAssets":5,"totalDepartments":0,"totalDocuments":0,"totalRequests":5,"totalSchedules":1,"totalUsers":6,"upcomingMaintenance":0},"timestamp":"2026-04-24 10:33:04:334","userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-24 10:33:07:337","userId":7}
+{"count":3,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:33:08:338","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-01"},"timestamp":"2026-04-24 10:33:08:338","userId":7}
+{"count":3,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:33:08:338","total":0,"userId":7}
+{"ip":"::1","level":"info","message":"Assets list request","query":{"active_form_id":"16","endDate":"2026-04-24","limit":"100","page":"1","sortBy":"created_at","sortOrder":"DESC","startDate":"2026-04-24"},"timestamp":"2026-04-24 10:33:12:3312","userId":7}
+{"count":1,"level":"info","message":"Assets list successful","timestamp":"2026-04-24 10:33:12:3312","total":0,"userId":7}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:34:21:3421"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:35:00:350"}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-04-24 10:35:01:351","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{},"targetUserId":7,"timestamp":"2026-04-24 10:35:01:351","userId":7}
+{"count":5,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-04-24 10:35:01:351","total":0}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 10:35:28:3528","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 10:35:28:3528","userId":7}
+{"assetId":"146","ip":"::1","level":"info","message":"Asset update request","timestamp":"2026-04-24 10:35:49:3549","updateData":["form_id","form_responses","created_by","approval_status"],"userId":7}
+{"assetId":146,"count":13,"formId":16,"level":"info","message":"Asset form responses saved","timestamp":"2026-04-24 10:35:51:3551"}
+{"level":"info","message":"QR code file saved","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\qrcodes\\qrcode_146.png","timestamp":"2026-04-24 10:35:51:3551"}
+{"action":"asset_updated","assetId":"146","assetTag":"ABJ-HQ-FL1-R4-CE-CABLEMANAGEMENTSYSTEMS-0001","level":"info","message":"Business Logic","timestamp":"2026-04-24 10:35:51:3551","updatedFields":["form_id","form_responses","created_by","approval_status"],"userId":7}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:36:08:368"}
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-24 10:38:45:3845"}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 11:05:09:59","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 11:05:10:510","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 11:20:41:2041","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 11:20:41:2041","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 11:30:32:3032","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 11:30:32:3032","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 11:41:41:4141","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 11:41:41:4141","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 12:13:02:132","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 12:13:02:132","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 12:25:42:2542","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 12:25:42:2542","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 12:40:49:4049","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 12:40:49:4049","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 12:53:01:531","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 12:53:01:531","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 12:59:50:5950","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 12:59:50:5950","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 13:07:48:748","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 13:07:48:748","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 13:32:29:3229","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 13:32:29:3229","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 14:04:03:43","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 14:04:03:43","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 14:44:40:4440","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 14:44:40:4440","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 14:53:21:5321","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 14:53:21:5321","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 15:04:28:428","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 15:04:28:428","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 15:13:44:1344","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 15:13:44:1344","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 15:27:21:2721","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 15:27:21:2721","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 15:49:06:496","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 15:49:06:496","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:01:01:11","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:01:01:11","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:10:30:1030","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:10:30:1030","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:17:05:175","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:17:05:175","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:23:28:2328","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:23:28:2328","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:29:24:2924","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:29:24:2924","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:34:36:3436","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:34:36:3436","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:40:19:4019","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:40:19:4019","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:50:27:5027","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:50:27:5027","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 16:55:43:5543","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 16:55:43:5543","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 17:00:53:053","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 17:00:54:054","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 17:05:56:556","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 17:05:56:556","userId":7}
+{"ip":"::1","level":"info","message":"Organization settings get request","timestamp":"2026-04-24 17:54:50:5450","userId":7}
+{"level":"info","message":"Organization settings retrieved successfully","organizationName":"GEOGID - AsseTrack","timestamp":"2026-04-24 17:54:51:5451","userId":7}
