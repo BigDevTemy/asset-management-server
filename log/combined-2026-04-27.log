@@ -1,0 +1,31 @@
+{"level":"info","message":"Batch jobs initialized successfully","timestamp":"2026-04-27 10:20:01:201"}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-27 10:21:33:2133"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-27 10:21:33:2133"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-27 10:21:33:2133","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":"admin@gmail.com"}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"User login attempt","timestamp":"2026-04-27 10:21:57:2157"}
+{"action":"login","email":"admin@gmail.com","level":"info","message":"Authentication","success":true,"timestamp":"2026-04-27 10:21:57:2157"}
+{"action":"login","ip":"::1","level":"info","message":"Authentication","method":"POST","success":true,"timestamp":"2026-04-27 10:21:57:2157","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36","userId":"admin@gmail.com"}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-04-27 10:21:59:2159","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{},"targetUserId":7,"timestamp":"2026-04-27 10:21:59:2159","userId":7}
+{"count":7,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-04-27 10:21:59:2159","total":0}
+{"assetData":{"form_id":16,"form_response_keys":["149","150","151","152","153","154","155","156","157","158","159","160","161","162"]},"ip":"::1","level":"info","message":"Asset creation request","timestamp":"2026-04-27 10:23:05:235","userId":7}
+{"assetId":149,"count":14,"formId":16,"level":"info","message":"Asset form responses saved","timestamp":"2026-04-27 10:23:09:239"}
+{"level":"info","message":"Barcode generated successfully","size":67095,"text":"ABJ-ANXM-FL4-STATEABJBUILDINGANXMFLOORFL4-MV-INTERCITYCOACHES-0002","timestamp":"2026-04-27 10:23:09:239","type":"code128"}
+{"level":"info","message":"Barcode file saved successfully","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\codes\\asset_149_barcode.png","text":"ABJ-ANXM-FL4-STATEABJBUILDINGANXMFLOORFL4-MV-INTERCITYCOACHES-0002","timestamp":"2026-04-27 10:23:09:239"}
+{"level":"info","message":"QR code file saved","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\codes\\asset_149_qrcode.png","timestamp":"2026-04-27 10:23:09:239"}
+{"error":"Could not find MIME for Buffer <null>","level":"warn","message":"Failed to read organization logo for codesheet","timestamp":"2026-04-27 10:23:10:2310"}
+{"asset_id":149,"barcodePath":"/codes/asset_149_barcode.png","barcodeTextLength":66,"level":"info","message":"Asset codes generated","qrCodePath":"/codes/asset_149_qrcode.png","sheetPath":"/codes/asset_149_codes.png","timestamp":"2026-04-27 10:23:10:2310"}
+{"action":"assign","assetId":149,"assetTag":"ABJ-ANXM-FL4-STATEABJBUILDINGANXMFLOORFL4-MV-INTERCITYCOACHES-0002","assignedToCreator":7,"creatorName":"admin@gmail.com","level":"info","message":"Business Logic","timestamp":"2026-04-27 10:23:11:2311","transactionId":82,"userId":7}
+{"action":"asset_created","assetId":149,"assetTag":"ABJ-ANXM-FL4-STATEABJBUILDINGANXMFLOORFL4-MV-INTERCITYCOACHES-0002","level":"info","message":"Business Logic","timestamp":"2026-04-27 10:23:11:2311","userId":7}
+{"level":"info","message":"Permission check passed","module":"assets","permission":"list_own","timestamp":"2026-04-27 10:23:33:2333","userId":7,"userRole":"admin"}
+{"ip":"::1","level":"info","message":"Assets by creator request","query":{},"targetUserId":7,"timestamp":"2026-04-27 10:23:33:2333","userId":7}
+{"count":8,"level":"info","message":"Assets by creator retrieved","targetUserId":7,"timestamp":"2026-04-27 10:23:33:2333","total":0}
+{"assetId":"149","ip":"::1","level":"info","message":"Asset update request","timestamp":"2026-04-27 10:24:03:243","updateData":["form_id","form_responses","created_by","approval_status"],"userId":7}
+{"assetId":149,"count":14,"formId":16,"level":"info","message":"Asset form responses saved","timestamp":"2026-04-27 10:24:04:244"}
+{"level":"info","message":"QR code file saved","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\qrcodes\\qrcode_149.png","timestamp":"2026-04-27 10:24:04:244"}
+{"level":"info","message":"Barcode generated successfully","size":63140,"text":"ABJ-ANXM-FL4-STATEABJBUILDINGANXMFLOORFL4-CE-CORDLESSPHONES-0002","timestamp":"2026-04-27 10:24:05:245","type":"code128"}
+{"level":"info","message":"Barcode file saved successfully","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\codes\\asset_149_barcode.png","text":"ABJ-ANXM-FL4-STATEABJBUILDINGANXMFLOORFL4-CE-CORDLESSPHONES-0002","timestamp":"2026-04-27 10:24:05:245"}
+{"level":"info","message":"QR code file saved","path":"C:\\Users\\VINCENT\\Desktop\\Temiloluwa\\TheBanckendFiles\\server\\public\\codes\\asset_149_qrcode.png","timestamp":"2026-04-27 10:24:05:245"}
+{"asset_id":149,"error":"asset.update is not a function","level":"error","message":"Failed to regenerate asset codes","timestamp":"2026-04-27 10:24:05:245"}
+{"asset_id":"149","error":"asset.update is not a function","level":"error","message":"Failed to regenerate asset codes after update","timestamp":"2026-04-27 10:24:05:245"}
+{"action":"asset_updated","assetId":"149","assetTag":"ABJ-ANXM-FL4-STATEABJBUILDINGANXMFLOORFL4-CE-CORDLESSPHONES-0002","level":"info","message":"Business Logic","timestamp":"2026-04-27 10:24:05:245","updatedFields":["form_id","form_responses","created_by","approval_status"],"userId":7}

@@ -2025,6 +2025,11 @@ class AssetService {
       )
     }
 
+    const hierarchyConfig = await this._getAssetCategoryHierarchyConfig(
+      fieldId,
+      transaction,
+    )
+
     const categoryCandidate =
       this._getHierarchySelectionValue(rawValue, 'Asset Category') ??
       this._getHierarchySelectionValue(rawValue, 'asset category')
@@ -2045,6 +2050,7 @@ class AssetService {
     const category = await this._findAssetCategoryByValue(
       categoryCandidate,
       transaction,
+      hierarchyConfig.category,
     )
     if (!category) {
       throw new Error(
@@ -2055,6 +2061,7 @@ class AssetService {
     const assetClass = await this._findAssetClassById(
       category.asset_class_id,
       transaction,
+      hierarchyConfig.assetClass,
     )
     if (!assetClass) {
       throw new Error(
@@ -2075,9 +2082,51 @@ class AssetService {
 
     return {
       categoryId: category.category_id,
-      categoryTagValue: category.name,
+      categoryTagValue: category.configured_value || category.name,
       classId: assetClass.asset_class_id,
-      classTagValue: assetClass.slug || assetClass.name,
+      classTagValue:
+        assetClass.configured_value || assetClass.slug || assetClass.name,
+    }
+  }
+
+  async _getAssetCategoryHierarchyConfig(fieldId, transaction) {
+    const empty = { assetClass: null, category: null }
+
+    if (!fieldId) return empty
+
+    try {
+      const field = await FormFields.findByPk(fieldId, {
+        attributes: ['id', 'hierarchy_levels'],
+        transaction,
+      })
+      const levels = this._parseHierarchyLevels(field?.hierarchy_levels)
+      if (!levels.length) return empty
+
+      const normalizeName = (value) =>
+        String(value || '')
+          .trim()
+          .toLowerCase()
+
+      const findLevel = (levelName, tableName) =>
+        levels.find((level) => {
+          const name = normalizeName(level?.name)
+          const table = normalizeName(level?.table)
+          return (
+            name === normalizeName(levelName) ||
+            (tableName && table === normalizeName(tableName))
+          )
+        }) || null
+
+      return {
+        assetClass: findLevel('Asset Class', 'asset_category_classes'),
+        category: findLevel('Asset Category', 'asset_categories'),
+      }
+    } catch (err) {
+      logger.warn('Failed to load asset category hierarchy config', {
+        fieldId,
+        error: err.message,
+      })
+      return empty
     }
   }
 
@@ -2138,7 +2187,7 @@ class AssetService {
     return undefined
   }
 
-  async _findAssetCategoryByValue(rawValue, transaction) {
+  async _findAssetCategoryByValue(rawValue, transaction, hierarchyLevel = null) {
     if (rawValue === undefined || rawValue === null || rawValue === '') {
       return null
     }
@@ -2160,6 +2209,45 @@ class AssetService {
     const val = String(rawValue).trim()
     if (!val) return null
 
+    const configuredValueKey =
+      hierarchyLevel?.table === 'asset_categories' &&
+      hierarchyLevel?.value_key &&
+      IDENTIFIER_REGEX.test(hierarchyLevel.value_key)
+        ? hierarchyLevel.value_key
+        : null
+
+    if (configuredValueKey && configuredValueKey !== 'name') {
+      try {
+        const tableDefinition = await Asset.sequelize
+          .getQueryInterface()
+          .describeTable('asset_categories')
+
+        if (tableDefinition[configuredValueKey]) {
+          const qg = Asset.sequelize.getQueryInterface().queryGenerator
+          const safeValueKey = qg.quoteIdentifier(configuredValueKey)
+          const [rowsByConfiguredValue] = await Asset.sequelize.query(
+            `
+              SELECT category_id, asset_class_id, name, ${safeValueKey} AS configured_value
+              FROM asset_categories
+              WHERE LOWER(${safeValueKey}) = LOWER(:val)
+              LIMIT 1
+            `,
+            { replacements: { val }, transaction },
+          )
+
+          if (rowsByConfiguredValue?.length) {
+            return rowsByConfiguredValue[0]
+          }
+        }
+      } catch (err) {
+        logger.warn('Failed to resolve asset category by configured value', {
+          valueKey: configuredValueKey,
+          value: val,
+          error: err.message,
+        })
+      }
+    }
+
     const [rowsByName] = await Asset.sequelize.query(
       `
         SELECT category_id, asset_class_id, name
@@ -2173,12 +2261,40 @@ class AssetService {
     return rowsByName?.[0] || null
   }
 
-  async _findAssetClassById(classId, transaction) {
+  async _findAssetClassById(classId, transaction, hierarchyLevel = null) {
     if (!classId) return null
+
+    const configuredValueKey =
+      hierarchyLevel?.table === 'asset_category_classes' &&
+      hierarchyLevel?.value_key &&
+      IDENTIFIER_REGEX.test(hierarchyLevel.value_key) &&
+      !['asset_class_id', 'name', 'slug'].includes(hierarchyLevel.value_key)
+        ? hierarchyLevel.value_key
+        : null
+
+    let configuredSelect = ''
+    if (configuredValueKey) {
+      try {
+        const tableDefinition = await Asset.sequelize
+          .getQueryInterface()
+          .describeTable('asset_category_classes')
+        if (tableDefinition[configuredValueKey]) {
+          const qg = Asset.sequelize.getQueryInterface().queryGenerator
+          configuredSelect = `, ${qg.quoteIdentifier(
+            configuredValueKey,
+          )} AS configured_value`
+        }
+      } catch (err) {
+        logger.warn('Failed to inspect asset class configured value column', {
+          valueKey: configuredValueKey,
+          error: err.message,
+        })
+      }
+    }
 
     const [rows] = await Asset.sequelize.query(
       `
-        SELECT asset_class_id, name, slug
+        SELECT asset_class_id, name, slug${configuredSelect}
         FROM asset_category_classes
         WHERE asset_class_id = :classId
         LIMIT 1

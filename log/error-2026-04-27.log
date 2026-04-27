@@ -1,0 +1,2 @@
+{"asset_id":149,"error":"asset.update is not a function","level":"error","message":"Failed to regenerate asset codes","timestamp":"2026-04-27 10:24:05:245"}
+{"asset_id":"149","error":"asset.update is not a function","level":"error","message":"Failed to regenerate asset codes after update","timestamp":"2026-04-27 10:24:05:245"}
