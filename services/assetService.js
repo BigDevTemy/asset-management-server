@@ -45,6 +45,16 @@ const PRINT_QR_SIZE = 128
 const PRINT_LOGO_MAX_WIDTH = 110
 const PRINT_LOGO_MAX_HEIGHT = 56
 const IMAGE_EXPORT_DOWNLOAD_CONCURRENCY = 4
+const DEFAULT_ASSET_IMAGE_STORAGE = 'cloudinary'
+const DEFAULT_ASSET_IMAGE_UPLOAD_DIR = 'uploads/assets'
+const ASSET_IMAGE_STORAGE_PROVIDERS = new Set(['cloudinary', 'folder', 'local'])
+const IMAGE_EXTENSION_BY_MIME = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+}
 const ZIP_CENTRAL_DIRECTORY_HEADER = 0x02014b50
 const ZIP_LOCAL_FILE_HEADER = 0x04034b50
 const ZIP_END_OF_CENTRAL_DIRECTORY = 0x06054b50
@@ -2576,14 +2586,8 @@ class AssetService {
 
       let processedValue = rawValue
 
-      // Handle camera uploads to Cloudinary
+      // Handle camera uploads using the configured asset image storage.
       if (field.type === 'camera') {
-        if (!isCloudinaryConfigured) {
-          throw new Error(
-            'Cloudinary credentials are not configured, unable to upload camera images',
-          )
-        }
-
         const images = Array.isArray(rawValue)
           ? rawValue
           : rawValue
@@ -2591,11 +2595,31 @@ class AssetService {
             : []
 
         const uploadedUrls = []
-        for (const base64 of images) {
-          if (!base64) continue
-          const url = await uploadBase64Image(base64, {
-            folder: `assets/${asset.asset_id}/camera/${field.id}`,
-          })
+        const storageProvider = getAssetImageStorageProvider()
+
+        if (storageProvider === 'cloudinary' && !isCloudinaryConfigured) {
+          throw new Error(
+            'Cloudinary credentials are not configured, unable to upload camera images',
+          )
+        }
+
+        for (const imageValue of images) {
+          if (!imageValue) continue
+
+          if (isStoredImageReference(imageValue)) {
+            uploadedUrls.push(imageValue)
+            continue
+          }
+
+          const url =
+            storageProvider === 'cloudinary'
+              ? await uploadBase64Image(imageValue, {
+                  folder: `assets/${asset.asset_id}/camera/${field.id}`,
+                })
+              : await this._saveBase64AssetImage(imageValue, {
+                  assetId: asset.asset_id,
+                  fieldId: field.id,
+                })
           uploadedUrls.push(url)
         }
 
@@ -3215,7 +3239,38 @@ class AssetService {
     return createZipArchive(entries)
   }
 
+  async _saveBase64AssetImage(base64String, { assetId, fieldId }) {
+    const parsedImage = parseBase64Image(base64String)
+    const uploadDir = getAssetImageUploadDir({
+      assetId,
+      fieldId,
+    })
+
+    await fs.mkdir(uploadDir.absolutePath, { recursive: true })
+
+    const uniqueSuffix =
+      typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+    const fileName = `asset_${assetId}_field_${fieldId}_${uniqueSuffix}${parsedImage.extension}`
+    const fullPath = path.join(uploadDir.absolutePath, fileName)
+
+    await fs.writeFile(fullPath, parsedImage.buffer)
+
+    return `${uploadDir.publicPath}/${fileName}`.replace(/\/+/g, '/')
+  }
+
   async _downloadFile(url) {
+    if (isLocalPublicPath(url)) {
+      const localPath = resolvePublicFilePath(url)
+      const buffer = await fs.readFile(localPath)
+
+      return {
+        buffer,
+        contentType: getImageContentType(localPath),
+      }
+    }
+
     const targetUrl = new URL(url)
     const client = targetUrl.protocol === 'http:' ? http : https
 
@@ -3422,6 +3477,113 @@ function generateJointCodeSheet(barcodePath, qrPath, outputPath) {
       })
       .catch(reject)
   })
+}
+
+function getAssetImageStorageProvider() {
+  const provider = String(
+    process.env.ASSET_IMAGE_STORAGE || DEFAULT_ASSET_IMAGE_STORAGE,
+  )
+    .trim()
+    .toLowerCase()
+
+  if (!ASSET_IMAGE_STORAGE_PROVIDERS.has(provider)) {
+    throw new Error(
+      `Invalid ASSET_IMAGE_STORAGE value: ${provider}. Use cloudinary, folder, or local.`,
+    )
+  }
+
+  return provider
+}
+
+function getAssetImageUploadDir({ assetId, fieldId }) {
+  const publicRoot = path.resolve(__dirname, '../public')
+  const baseDir = normalizePublicRelativePath(
+    process.env.ASSET_IMAGE_UPLOAD_DIR || DEFAULT_ASSET_IMAGE_UPLOAD_DIR,
+  )
+  const relativeDir = path.join(
+    baseDir,
+    String(assetId),
+    'camera',
+    String(fieldId),
+  )
+  const absolutePath = path.resolve(publicRoot, relativeDir)
+
+  ensureInsidePublicRoot(publicRoot, absolutePath)
+
+  return {
+    absolutePath,
+    publicPath: `/${relativeDir.replace(/\\/g, '/')}`,
+  }
+}
+
+function normalizePublicRelativePath(value) {
+  const normalized = String(value || DEFAULT_ASSET_IMAGE_UPLOAD_DIR)
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+
+  if (!normalized || normalized.split('/').some((part) => part === '..')) {
+    throw new Error('ASSET_IMAGE_UPLOAD_DIR must be a folder inside public')
+  }
+
+  return normalized
+}
+
+function parseBase64Image(value) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error('Camera image must be a base64 string')
+  }
+
+  const trimmed = value.trim()
+  const dataUriMatch = trimmed.match(/^data:([^;]+);base64,(.+)$/i)
+  const mimeType = dataUriMatch?.[1]?.toLowerCase() || 'image/jpeg'
+  const base64Payload = dataUriMatch ? dataUriMatch[2] : trimmed
+  const extension = IMAGE_EXTENSION_BY_MIME[mimeType]
+
+  if (!extension) {
+    throw new Error(`Unsupported camera image type: ${mimeType}`)
+  }
+
+  const buffer = Buffer.from(base64Payload, 'base64')
+  if (!buffer.length) {
+    throw new Error('Camera image is empty')
+  }
+
+  return { buffer, extension, mimeType }
+}
+
+function isStoredImageReference(value) {
+  if (typeof value !== 'string') return false
+  return /^(https?:)?\/\//i.test(value) || value.startsWith('/')
+}
+
+function isLocalPublicPath(value) {
+  return typeof value === 'string' && value.startsWith('/')
+}
+
+function resolvePublicFilePath(publicPath) {
+  const publicRoot = path.resolve(__dirname, '../public')
+  const relativePath = publicPath.replace(/^\/+/, '').replace(/\//g, path.sep)
+  const absolutePath = path.resolve(publicRoot, relativePath)
+
+  ensureInsidePublicRoot(publicRoot, absolutePath)
+  return absolutePath
+}
+
+function ensureInsidePublicRoot(publicRoot, targetPath) {
+  const relative = path.relative(publicRoot, targetPath)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Resolved file path must stay inside public')
+  }
+}
+
+function getImageContentType(filePath) {
+  const extension = path.extname(filePath).toLowerCase()
+  const mimeEntry = Object.entries(IMAGE_EXTENSION_BY_MIME).find(
+    ([, ext]) => ext === extension,
+  )
+
+  return mimeEntry?.[0] || null
 }
 
 function _parseResponseValue(value) {
